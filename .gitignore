@@ -39,10 +39,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# root raw media files (source media stored in public/)
-/*.mp4
-/*.png
-public/videos/kylaq-reveal.mp4
-public/videos/full_color_showcase.mp4
-public/videos/scroll_video.mp4
