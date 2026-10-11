@@ -15,46 +15,38 @@ export const LogoLoader: React.FC<LogoLoaderProps> = ({ isReady }) => {
         <motion.div
           key="loader"
           initial={{ opacity: 1 }}
-          exit={{ opacity: 0, scale: 1.03 }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.8, ease: "easeInOut" }}
           className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center p-6 select-none pointer-events-none"
         >
-          {/* Subtle Ambient Backlight Glow */}
-          <div className="absolute w-[500px] h-[500px] bg-[#00A878]/10 blur-[150px] rounded-full pointer-events-none" />
-
-          {/* Large Crisp Official Škoda Logo */}
+          {/* Large Crisp Official Škoda Logo (Pure Deep Black Background - NO GLOW) */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.85, y: 15 }}
+            initial={{ opacity: 0, scale: 0.9, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-            className="relative w-36 h-36 sm:w-48 sm:h-48 mb-8 z-10"
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="relative w-36 h-36 sm:w-48 sm:h-48 mb-8"
           >
             <Image
               src="/skoda-logo.png"
               alt="Škoda Official Logo"
               fill
               priority
-              className="object-contain drop-shadow-[0_10px_35px_rgba(0,168,120,0.25)]"
+              className="object-contain"
             />
           </motion.div>
 
-          {/* Welcome Text & Brand Typography */}
+          {/* Original Brand Typography (No 90%/100% Loading Bar) */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.25, ease: "easeOut" }}
-            className="text-center flex flex-col items-center max-w-xl z-10"
+            transition={{ duration: 0.8, delay: 0.15 }}
+            className="text-center"
           >
-            <div className="px-4 py-1 rounded-full bg-white/[0.06] border border-white/15 backdrop-blur-md text-[11px] font-mono tracking-[0.35em] text-[#00A878] uppercase mb-4 shadow-xl">
-              SIMPLY CLEVER
-            </div>
-
-            <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold font-heading text-[#F3F0E8] uppercase tracking-[0.16em] leading-tight mb-3 drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)]">
-              WELCOME TO <span className="text-[#C4D600]">ŠKODA</span>
+            <h1 className="text-3xl sm:text-5xl font-extrabold font-heading text-[#F3F0E8] uppercase tracking-[0.25em] leading-none mb-2">
+              ŠKODA KYLAQ
             </h1>
-
-            <p className="text-xs sm:text-sm font-mono tracking-[0.35em] text-zinc-400 uppercase">
-              THE ALL-NEW ŠKODA KYLAQ
+            <p className="text-xs font-mono tracking-[0.4em] text-zinc-400 uppercase">
+              AUTOMOTIVE DIGITAL CINEMA
             </p>
           </motion.div>
         </motion.div>
