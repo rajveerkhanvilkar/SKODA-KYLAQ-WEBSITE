@@ -83,11 +83,10 @@ export function drawImageToCanvas(
   const srcRatio = srcW / srcH;
   const canvasRatio = canvasWidth / canvasHeight;
 
-  // ── ULTRA-WIDE SCREENS (e.g. 21:9, 32:9) ────────────────────────────────
-  // The source is 16:9; the container is wider. We must NOT stretch the car.
-  // Solution: draw 16:9 footage centred at full height, extend flanks with a
-  // darkened blurred duplicate to fill dead space.
-  if (canvasRatio > srcRatio + 0.03) {
+  // ── ULTRA-WIDE SCREENS (e.g. 21:9, wider-than-16:9 laptops) ─────────────
+  // Only apply ambient-extension when fit === "contain" (hero/parts).
+  // When fit === "cover" (colorways), ALWAYS fill edge-to-edge — no black bars.
+  if (fit === "contain" && canvasRatio > srcRatio + 0.03) {
     // 1. Background: stretched duplicate at very low opacity to fill width
     const bgH = canvasWidth / srcRatio;
     const bgOffY = (canvasHeight - bgH) / 2;
@@ -119,6 +118,7 @@ export function drawImageToCanvas(
     ctx.drawImage(img, fgX, 0, fgW, fgH);
     return;
   }
+
 
   // ── PORTRAIT / MOBILE (<1.0 ratio) ───────────────────────────────────────
   // Fill full width; centre vertically. Car proportions are never distorted.
