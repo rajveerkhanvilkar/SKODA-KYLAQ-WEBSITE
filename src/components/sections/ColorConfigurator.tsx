@@ -214,11 +214,16 @@ export const ColorConfigurator: React.FC = () => {
 
           const activeProgress = Math.min(1, progress / 0.88);
 
-          // Active Color Index: Yellow (0) -> Grey (1) -> Silver (2) -> Red (3)
+          // 4 Perfectly Balanced Stages (25% each):
+          // Stage 0: 0.00 -> 0.25 : Yellow / Chartreuse (Video 1: frames 0..119)
+          // Stage 1: 0.25 -> 0.50 : Carbon Steel Grey (Video 1: frames 120..239)
+          // Stage 2: 0.50 -> 0.75 : Brilliant Silver (Video 2: frames 0..119)
+          // Stage 3: 0.75 -> 1.00 : Tornado Red (Video 2: frames 120..239)
+
           let colorIdx = 0;
-          if (activeProgress >= 0.72) colorIdx = 3;
-          else if (activeProgress >= 0.48) colorIdx = 2;
-          else if (activeProgress >= 0.24) colorIdx = 1;
+          if (activeProgress >= 0.75) colorIdx = 3;
+          else if (activeProgress >= 0.50) colorIdx = 2;
+          else if (activeProgress >= 0.25) colorIdx = 1;
           else colorIdx = 0;
 
           if (activeColorIndexRef.current !== colorIdx) {
@@ -226,12 +231,12 @@ export const ColorConfigurator: React.FC = () => {
             setActiveColorIndex(colorIdx);
           }
 
-          // ZONE 1: 1st Video (Yellow & Grey Car Pass) - Progress 0.00 -> 0.44
-          if (activeProgress <= 0.44) {
+          // Video 1: Yellow & Grey Car Pass (Progress 0.00 -> 0.50)
+          if (activeProgress < 0.50) {
             if (c1 && c1.style.opacity !== "1") c1.style.opacity = "1";
             if (c2 && c2.style.opacity !== "0") c2.style.opacity = "0";
 
-            const p1 = activeProgress / 0.44;
+            const p1 = activeProgress / 0.50;
             const f1 = Math.min(
               TOTAL_COLOR_FRAMES - 1,
               Math.max(0, Math.round(p1 * (TOTAL_COLOR_FRAMES - 1)))
@@ -241,22 +246,7 @@ export const ColorConfigurator: React.FC = () => {
               drawVideo1(f1);
             }
           }
-          // ZONE 2: Seamless Crossfade between 1st Video and 2nd Video - Progress 0.44 -> 0.50
-          else if (activeProgress <= 0.50) {
-            const crossRatio = (activeProgress - 0.44) / 0.06;
-            if (c1) c1.style.opacity = `${1 - crossRatio}`;
-            if (c2) c2.style.opacity = `${crossRatio}`;
-
-            if (lastDrawn1Ref.current !== TOTAL_COLOR_FRAMES - 1) {
-              lastDrawn1Ref.current = TOTAL_COLOR_FRAMES - 1;
-              drawVideo1(TOTAL_COLOR_FRAMES - 1);
-            }
-            if (lastDrawn2Ref.current !== 0) {
-              lastDrawn2Ref.current = 0;
-              drawVideo2(0);
-            }
-          }
-          // ZONE 3: 2nd Video (Silver & Tornado Red Car Pass) - Progress 0.50 -> 1.00
+          // Video 2: Silver & Tornado Red Car Pass (Progress 0.50 -> 1.00)
           else {
             if (c1 && c1.style.opacity !== "0") c1.style.opacity = "0";
             if (c2 && c2.style.opacity !== "1") c2.style.opacity = "1";
