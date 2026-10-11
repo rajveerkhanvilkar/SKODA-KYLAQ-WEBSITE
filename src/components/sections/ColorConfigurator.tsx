@@ -2,7 +2,9 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { gsap, ScrollTrigger } from "@/lib/animations";
+import { gsap, ScrollTrigger, drawImageToCanvas } from "@/lib/animations";
+
+const TOTAL_COLOR_FRAMES = 240;
 
 interface ColorStageInfo {
   id: string;
@@ -47,55 +49,158 @@ export const ColorConfigurator: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const stickyRef = useRef<HTMLDivElement>(null);
 
-  const video1Ref = useRef<HTMLVideoElement>(null);
-  const video2Ref = useRef<HTMLVideoElement>(null);
+  const canvas1Ref = useRef<HTMLCanvasElement>(null);
+  const canvas2Ref = useRef<HTMLCanvasElement>(null);
 
   const [activeColorIndex, setActiveColorIndex] = useState<number>(0);
-  const [video1Opacity, setVideo1Opacity] = useState<number>(1);
-  const [video2Opacity, setVideo2Opacity] = useState<number>(0);
+  const [isLoaded, setIsLoaded] = useState<boolean>(false);
 
-  const targetTime1 = useRef<number>(0);
-  const targetTime2 = useRef<number>(0);
+  const frameIndex1Ref = useRef<number>(0);
+  const frameIndex2Ref = useRef<number>(0);
+  const frames1Ref = useRef<HTMLImageElement[]>([]);
+  const frames2Ref = useRef<HTMLImageElement[]>([]);
 
-  // Hardware-accelerated RAF lerp loop for ultra-smooth 60FPS video scrubbing
+  // Cached viewport dimensions for lag-free 60FPS canvas draw without layout thrashing
+  const dimensionsRef = useRef<{ width: number; height: number; dpr: number }>({
+    width: 1920,
+    height: 1080,
+    dpr: 1,
+  });
+
+  // Preload all 240 frames of Video 1 (Yellow & Grey) and 240 frames of Video 2 (Silver & Tornado Red)
   useEffect(() => {
-    let animId: number;
+    let isMounted = true;
+    let loaded1 = 0;
+    let loaded2 = 0;
 
-    const smoothScrub = () => {
-      const v1 = video1Ref.current;
-      if (v1 && v1.duration && !v1.seeking) {
-        const diff1 = targetTime1.current - v1.currentTime;
-        if (Math.abs(diff1) > 0.02) {
-          v1.currentTime += diff1 * 0.35;
-        }
+    const imgs1: HTMLImageElement[] = new Array(TOTAL_COLOR_FRAMES);
+    const imgs2: HTMLImageElement[] = new Array(TOTAL_COLOR_FRAMES);
+
+    const checkComplete = () => {
+      if (
+        loaded1 >= TOTAL_COLOR_FRAMES &&
+        loaded2 >= TOTAL_COLOR_FRAMES &&
+        isMounted
+      ) {
+        frames1Ref.current = imgs1;
+        frames2Ref.current = imgs2;
+        setIsLoaded(true);
       }
-
-      const v2 = video2Ref.current;
-      if (v2 && v2.duration && !v2.seeking) {
-        const diff2 = targetTime2.current - v2.currentTime;
-        if (Math.abs(diff2) > 0.02) {
-          v2.currentTime += diff2 * 0.35;
-        }
-      }
-
-      animId = requestAnimationFrame(smoothScrub);
     };
 
-    animId = requestAnimationFrame(smoothScrub);
-    return () => cancelAnimationFrame(animId);
+    for (let i = 0; i < TOTAL_COLOR_FRAMES; i++) {
+      // 1st Video: Yellow & Grey Car Pass
+      const img1 = new window.Image();
+      img1.src = `/frames_color_yellow_grey/frame_${String(i).padStart(3, "0")}.webp`;
+      img1.onload = () => {
+        imgs1[i] = img1;
+        loaded1++;
+        checkComplete();
+      };
+      img1.onerror = () => {
+        loaded1++;
+        checkComplete();
+      };
+
+      // 2nd Video: Silver & Tornado Red Car Pass
+      const img2 = new window.Image();
+      img2.src = `/frames_color_silver_red/frame_${String(i).padStart(3, "0")}.webp`;
+      img2.onload = () => {
+        imgs2[i] = img2;
+        loaded2++;
+        checkComplete();
+      };
+      img2.onerror = () => {
+        loaded2++;
+        checkComplete();
+      };
+    }
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // GSAP ScrollTrigger Pinned Stage for 1st Video (Yellow & Grey) and 2nd Video (Silver & Tornado Red)
-  // refreshPriority: 1 ensures it calculates position AFTER Hero (refreshPriority: 2), so it never overlaps Design!
+  // Update canvas size on resize only
   useEffect(() => {
-    if (!containerRef.current || !stickyRef.current) return;
+    const updateDimensions = () => {
+      if (typeof window === "undefined") return;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const dpr = Math.min(window.devicePixelRatio || 2, 2.0);
+      dimensionsRef.current = { width: w, height: h, dpr };
+
+      if (canvas1Ref.current) {
+        canvas1Ref.current.width = Math.floor(w * dpr);
+        canvas1Ref.current.height = Math.floor(h * dpr);
+      }
+      if (canvas2Ref.current) {
+        canvas2Ref.current.width = Math.floor(w * dpr);
+        canvas2Ref.current.height = Math.floor(h * dpr);
+      }
+
+      drawVideo1(frameIndex1Ref.current);
+      drawVideo2(frameIndex2Ref.current);
+    };
+
+    updateDimensions();
+    window.addEventListener("resize", updateDimensions);
+    return () => window.removeEventListener("resize", updateDimensions);
+  }, []);
+
+  // Direct high-performance Canvas renderers (Lag-Free 60FPS)
+  const drawVideo1 = (index: number) => {
+    const canvas = canvas1Ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) return;
+
+    const { width, height, dpr } = dimensionsRef.current;
+    const clampedIndex = Math.min(TOTAL_COLOR_FRAMES - 1, Math.max(0, index));
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    if (frames1Ref.current[clampedIndex]) {
+      drawImageToCanvas(ctx, frames1Ref.current[clampedIndex], width, height, "cover");
+    }
+    ctx.restore();
+  };
+
+  const drawVideo2 = (index: number) => {
+    const canvas = canvas2Ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) return;
+
+    const { width, height, dpr } = dimensionsRef.current;
+    const clampedIndex = Math.min(TOTAL_COLOR_FRAMES - 1, Math.max(0, index));
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    if (frames2Ref.current[clampedIndex]) {
+      drawImageToCanvas(ctx, frames2Ref.current[clampedIndex], width, height, "cover");
+    }
+    ctx.restore();
+  };
+
+  // Draw initial frames when loaded
+  useEffect(() => {
+    if (isLoaded) {
+      drawVideo1(0);
+      drawVideo2(0);
+      if (canvas1Ref.current) canvas1Ref.current.style.opacity = "1";
+      if (canvas2Ref.current) canvas2Ref.current.style.opacity = "0";
+      ScrollTrigger.refresh();
+    }
+  }, [isLoaded]);
+
+  // GSAP ScrollTrigger Pinned Stage: Buttery-smooth, slow, lag-free scrub identical to Hero
+  useEffect(() => {
+    if (!isLoaded || !containerRef.current || !stickyRef.current) return;
 
     const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-    const pinDistance = isMobile ? 2600 : 3800;
-
-    const timer = setTimeout(() => {
-      ScrollTrigger.refresh();
-    }, 150);
+    // Generous pin distance for slow, luxurious, lag-free inspection of car color passes
+    const pinDistance = isMobile ? 3800 : 5600;
 
     const ctx = gsap.context(() => {
       ScrollTrigger.create({
@@ -105,10 +210,12 @@ export const ColorConfigurator: React.FC = () => {
         pin: stickyRef.current,
         pinSpacing: true,
         anticipatePin: 0,
-        refreshPriority: 1, // Computed strictly after upstream pinned sections
-        scrub: 0.2, // Snappy, responsive scrub
+        refreshPriority: 1, // Computed after upstream pinned sections
+        scrub: 0.15, // Silky smooth, lag-free scrub
         onUpdate: (self) => {
           const progress = Math.min(1, Math.max(0, self.progress));
+          const c1 = canvas1Ref.current;
+          const c2 = canvas2Ref.current;
 
           // 0.00 to 0.88: Active video playback range; 0.88 to 1.00: Hold & smooth flow exit
           const activeProgress = Math.min(1, progress / 0.88);
@@ -122,44 +229,61 @@ export const ColorConfigurator: React.FC = () => {
 
           setActiveColorIndex(colorIdx);
 
-          const v1 = video1Ref.current;
-          const v2 = video2Ref.current;
+          // ZONE 1: 1st Video (Yellow & Grey Car Pass) - Progress 0.00 -> 0.44
+          if (activeProgress <= 0.44) {
+            if (c1) c1.style.opacity = "1";
+            if (c2) c2.style.opacity = "0";
 
-          // 1st Video: Yellow & Grey Car Pass (Progress 0.00 -> 0.46)
-          if (activeProgress <= 0.46) {
-            setVideo1Opacity(1);
-            setVideo2Opacity(0);
-            if (v1 && v1.duration) {
-              targetTime1.current = (activeProgress / 0.46) * v1.duration;
+            const p1 = activeProgress / 0.44;
+            const f1 = Math.min(
+              TOTAL_COLOR_FRAMES - 1,
+              Math.floor(p1 * TOTAL_COLOR_FRAMES)
+            );
+            if (f1 !== frameIndex1Ref.current) {
+              frameIndex1Ref.current = f1;
+              drawVideo1(f1);
             }
           }
-          // Seamless Crossfade between Video 1 and Video 2 (Progress 0.46 -> 0.52)
-          else if (activeProgress <= 0.52) {
-            const crossRatio = (activeProgress - 0.46) / 0.06;
-            setVideo1Opacity(1 - crossRatio);
-            setVideo2Opacity(crossRatio);
+          // ZONE 2: Seamless Crossfade between 1st Video and 2nd Video - Progress 0.44 -> 0.50
+          else if (activeProgress <= 0.50) {
+            const crossRatio = (activeProgress - 0.44) / 0.06;
+            if (c1) c1.style.opacity = `${1 - crossRatio}`;
+            if (c2) c2.style.opacity = `${crossRatio}`;
 
-            if (v1 && v1.duration) targetTime1.current = v1.duration;
-            if (v2 && v2.duration) targetTime2.current = 0;
+            if (frameIndex1Ref.current !== TOTAL_COLOR_FRAMES - 1) {
+              frameIndex1Ref.current = TOTAL_COLOR_FRAMES - 1;
+              drawVideo1(TOTAL_COLOR_FRAMES - 1);
+            }
+            if (frameIndex2Ref.current !== 0) {
+              frameIndex2Ref.current = 0;
+              drawVideo2(0);
+            }
           }
-          // 2nd Video: Silver & Tornado Red Car Pass (Progress 0.52 -> 1.00)
+          // ZONE 3: 2nd Video (Silver & Tornado Red Car Pass) - Progress 0.50 -> 1.00
           else {
-            setVideo1Opacity(0);
-            setVideo2Opacity(1);
-            if (v2 && v2.duration) {
-              const p2 = (activeProgress - 0.52) / (1 - 0.52);
-              targetTime2.current = p2 * v2.duration;
+            if (c1) c1.style.opacity = "0";
+            if (c2) c2.style.opacity = "1";
+
+            const p2 = (activeProgress - 0.50) / 0.50;
+            const f2 = Math.min(
+              TOTAL_COLOR_FRAMES - 1,
+              Math.floor(p2 * TOTAL_COLOR_FRAMES)
+            );
+            if (f2 !== frameIndex2Ref.current) {
+              frameIndex2Ref.current = f2;
+              drawVideo2(f2);
             }
           }
         },
       });
+
+      ScrollTrigger.refresh();
     }, containerRef);
 
     return () => {
-      clearTimeout(timer);
       ctx.revert();
     };
-  }, []);
+  }, [isLoaded]);
 
   const activeColor = COLOR_STAGES[activeColorIndex];
 
@@ -214,28 +338,20 @@ export const ColorConfigurator: React.FC = () => {
           </AnimatePresence>
         </div>
 
-        {/* Fullscreen Screen-Fitted Video Viewport Stage */}
+        {/* Fullscreen Screen-Fitted Dual Canvas Stage (60FPS Zero Lag) */}
         <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden p-0 m-0">
-          {/* Video 1: Yellow & Grey Car Pass (yellow and grey car color video_gwr_video_mvp.mp4) */}
-          <video
-            ref={video1Ref}
-            src="/videos/color_yellow_grey.mp4"
-            preload="auto"
-            muted
-            playsInline
-            style={{ opacity: video1Opacity }}
-            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 z-10"
+          {/* Canvas 1: Yellow & Grey Car Pass */}
+          <canvas
+            ref={canvas1Ref}
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none will-change-transform"
+            style={{ opacity: 1 }}
           />
 
-          {/* Video 2: Silver & Tornado Red Car Pass (silver and tornado red_gwr_video_mvp.mp4) */}
-          <video
-            ref={video2Ref}
-            src="/videos/color_silver_red.mp4"
-            preload="auto"
-            muted
-            playsInline
-            style={{ opacity: video2Opacity }}
-            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 z-10"
+          {/* Canvas 2: Silver & Tornado Red Car Pass */}
+          <canvas
+            ref={canvas2Ref}
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none will-change-transform"
+            style={{ opacity: 0 }}
           />
 
           {/* Cinematic Vignette Overlay */}
@@ -244,7 +360,6 @@ export const ColorConfigurator: React.FC = () => {
           {/* Seamless Bottom Gradient Mask for natural transition into next section */}
           <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent pointer-events-none z-20" />
         </div>
-
       </div>
     </section>
   );

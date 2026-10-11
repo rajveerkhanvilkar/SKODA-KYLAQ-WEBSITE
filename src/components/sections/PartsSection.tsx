@@ -107,9 +107,9 @@ export const PartsSection: React.FC = () => {
     if (!isLoaded || !containerRef.current || !stickyRef.current) return;
 
     const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-    // Generous pin distance for slow, slow, smooth inspection of vehicle parts
-    const pinDistance = isMobile ? 3000 : 4400;
-    const PLAY_ZONE = 0.82; // Complete 100% of parts video by 82% mark, hold remainder
+    // Generous pin distance for slow, soft, buttery-smooth inspection of vehicle parts
+    const pinDistance = isMobile ? 3800 : 5600;
+    const PLAY_ZONE = 0.85; // Complete 100% of parts video by 85% mark, hold remainder
 
     const ctx = gsap.context(() => {
       ScrollTrigger.create({
