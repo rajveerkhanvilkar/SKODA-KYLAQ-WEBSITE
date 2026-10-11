@@ -26,7 +26,7 @@ export const CinematicReveal: React.FC = () => {
     dpr: 1,
   });
 
-  // Preload BOTH Video 1 (gemini_generated_video_e277932d_gwr_video_mvp.mp4) and Video 2 (gemini_generated_video_e5b6e618_gwr_video_mvp.mp4)
+  // Preload BOTH Video 1 (1st car video starting.mp4) and Video 2 (gemini_generated_video_e5b6e618_gwr_video_mvp.mp4)
   useEffect(() => {
     let isMounted = true;
     let loaded1 = 0;
@@ -48,7 +48,7 @@ export const CinematicReveal: React.FC = () => {
     };
 
     for (let i = 0; i < TOTAL_FRAMES_PER_VIDEO; i++) {
-      // Video 1: frames_intro (gemini_generated_video_e277932d_gwr_video_mvp.mp4)
+      // Video 1: frames_intro (1st car video starting.mp4)
       const img1 = new window.Image();
       img1.src = `/frames_intro/frame_${String(i).padStart(3, "0")}.webp`;
       img1.onload = () => {
@@ -154,7 +154,7 @@ export const CinematicReveal: React.FC = () => {
     }
   }, [isLoaded]);
 
-  // Combined Scroll Video: 1st Video (gemini_generated_video_e277932d_gwr_video_mvp.mp4)
+  // Combined Scroll Video: 1st Video (1st car video starting.mp4)
   // then combined with 2nd Video (gemini_generated_video_e5b6e618_gwr_video_mvp.mp4) which plays to the VERY LAST FRAME!
   useEffect(() => {
     if (!isLoaded || !containerRef.current || !stickyRef.current) return;
@@ -177,7 +177,7 @@ export const CinematicReveal: React.FC = () => {
           const c1 = canvas1Ref.current;
           const c2 = canvas2Ref.current;
 
-          // ZONE 1: 1st Video (gemini_generated_video_e277932d_gwr_video_mvp.mp4) - Progress 0.00 -> 0.42
+          // ZONE 1: 1st Video (1st car video starting.mp4) - Progress 0.00 -> 0.42
           if (progress < 0.42) {
             if (c1) c1.style.opacity = "1";
             if (c2) c2.style.opacity = "0";
@@ -256,7 +256,7 @@ export const CinematicReveal: React.FC = () => {
       >
         {/* Fullscreen Video Canvas Stage */}
         <div className="relative z-10 w-full h-full flex items-center justify-center bg-black overflow-hidden p-0 m-0">
-          {/* 1st Video Canvas: gemini_generated_video_e277932d_gwr_video_mvp.mp4 */}
+          {/* 1st Video Canvas: 1st car video starting.mp4 */}
           <canvas
             ref={canvas1Ref}
             className="absolute inset-0 w-full h-full object-cover pointer-events-none will-change-transform"
