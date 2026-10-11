@@ -148,6 +148,10 @@ export const ColorConfigurator: React.FC = () => {
     return () => window.removeEventListener("resize", updateDimensions);
   }, []);
 
+  const activeColorIndexRef = useRef<number>(0);
+  const lastDrawn1Ref = useRef<number>(-1);
+  const lastDrawn2Ref = useRef<number>(-1);
+
   // Direct high-performance Canvas renderers (Single Crisp Frame, Zero Ghosting)
   const drawVideo1 = (index: number) => {
     const canvas = canvas1Ref.current;
@@ -155,15 +159,11 @@ export const ColorConfigurator: React.FC = () => {
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
-    const { width, height, dpr } = dimensionsRef.current;
     const clampedIndex = Math.min(TOTAL_COLOR_FRAMES - 1, Math.max(0, Math.round(index)));
-
-    ctx.save();
-    ctx.scale(dpr, dpr);
-    if (frames1Ref.current[clampedIndex]) {
-      drawImageToCanvas(ctx, frames1Ref.current[clampedIndex], width, height, "cover");
+    const img = frames1Ref.current[clampedIndex];
+    if (img) {
+      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "cover");
     }
-    ctx.restore();
   };
 
   const drawVideo2 = (index: number) => {
@@ -172,15 +172,11 @@ export const ColorConfigurator: React.FC = () => {
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
-    const { width, height, dpr } = dimensionsRef.current;
     const clampedIndex = Math.min(TOTAL_COLOR_FRAMES - 1, Math.max(0, Math.round(index)));
-
-    ctx.save();
-    ctx.scale(dpr, dpr);
-    if (frames2Ref.current[clampedIndex]) {
-      drawImageToCanvas(ctx, frames2Ref.current[clampedIndex], width, height, "cover");
+    const img = frames2Ref.current[clampedIndex];
+    if (img) {
+      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "cover");
     }
-    ctx.restore();
   };
 
   // Draw initial frames when loaded
@@ -194,12 +190,12 @@ export const ColorConfigurator: React.FC = () => {
     }
   }, [isLoaded]);
 
-  // GSAP ScrollTrigger Pinned Stage: Buttery-smooth, slow, lag-free scrub identical to Hero
+  // GSAP ScrollTrigger Pinned Stage: Ultra-responsive, buttery-soft scrub for Colorways
   useEffect(() => {
     if (!isLoaded || !containerRef.current || !stickyRef.current) return;
 
     const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-    const pinDistance = isMobile ? 3000 : 4200;
+    const pinDistance = isMobile ? 2600 : 3800;
 
     const ctx = gsap.context(() => {
       ScrollTrigger.create({
@@ -210,13 +206,12 @@ export const ColorConfigurator: React.FC = () => {
         pinSpacing: true,
         anticipatePin: 0,
         refreshPriority: 1, // Computed after upstream pinned sections
-        scrub: 0.35, // Ultra-smooth, responsive, zero-lag scrub
+        scrub: 0.15, // Responsive, buttery-smooth scrub with zero perceptible lag
         onUpdate: (self) => {
           const progress = Math.min(1, Math.max(0, self.progress));
           const c1 = canvas1Ref.current;
           const c2 = canvas2Ref.current;
 
-          // 0.00 to 0.88: Active video playback range; 0.88 to 1.00: Hold & smooth flow exit
           const activeProgress = Math.min(1, progress / 0.88);
 
           // Active Color Index: Yellow (0) -> Grey (1) -> Silver (2) -> Red (3)
@@ -226,20 +221,23 @@ export const ColorConfigurator: React.FC = () => {
           else if (activeProgress >= 0.24) colorIdx = 1;
           else colorIdx = 0;
 
-          setActiveColorIndex(colorIdx);
+          if (activeColorIndexRef.current !== colorIdx) {
+            activeColorIndexRef.current = colorIdx;
+            setActiveColorIndex(colorIdx);
+          }
 
           // ZONE 1: 1st Video (Yellow & Grey Car Pass) - Progress 0.00 -> 0.44
           if (activeProgress <= 0.44) {
-            if (c1) c1.style.opacity = "1";
-            if (c2) c2.style.opacity = "0";
+            if (c1 && c1.style.opacity !== "1") c1.style.opacity = "1";
+            if (c2 && c2.style.opacity !== "0") c2.style.opacity = "0";
 
             const p1 = activeProgress / 0.44;
             const f1 = Math.min(
               TOTAL_COLOR_FRAMES - 1,
               Math.max(0, Math.round(p1 * (TOTAL_COLOR_FRAMES - 1)))
             );
-            if (f1 !== frameIndex1Ref.current) {
-              frameIndex1Ref.current = f1;
+            if (f1 !== lastDrawn1Ref.current) {
+              lastDrawn1Ref.current = f1;
               drawVideo1(f1);
             }
           }
@@ -249,27 +247,27 @@ export const ColorConfigurator: React.FC = () => {
             if (c1) c1.style.opacity = `${1 - crossRatio}`;
             if (c2) c2.style.opacity = `${crossRatio}`;
 
-            if (frameIndex1Ref.current !== TOTAL_COLOR_FRAMES - 1) {
-              frameIndex1Ref.current = TOTAL_COLOR_FRAMES - 1;
+            if (lastDrawn1Ref.current !== TOTAL_COLOR_FRAMES - 1) {
+              lastDrawn1Ref.current = TOTAL_COLOR_FRAMES - 1;
               drawVideo1(TOTAL_COLOR_FRAMES - 1);
             }
-            if (frameIndex2Ref.current !== 0) {
-              frameIndex2Ref.current = 0;
+            if (lastDrawn2Ref.current !== 0) {
+              lastDrawn2Ref.current = 0;
               drawVideo2(0);
             }
           }
           // ZONE 3: 2nd Video (Silver & Tornado Red Car Pass) - Progress 0.50 -> 1.00
           else {
-            if (c1) c1.style.opacity = "0";
-            if (c2) c2.style.opacity = "1";
+            if (c1 && c1.style.opacity !== "0") c1.style.opacity = "0";
+            if (c2 && c2.style.opacity !== "1") c2.style.opacity = "1";
 
             const p2 = (activeProgress - 0.50) / 0.50;
             const f2 = Math.min(
               TOTAL_COLOR_FRAMES - 1,
               Math.max(0, Math.round(p2 * (TOTAL_COLOR_FRAMES - 1)))
             );
-            if (f2 !== frameIndex2Ref.current) {
-              frameIndex2Ref.current = f2;
+            if (f2 !== lastDrawn2Ref.current) {
+              lastDrawn2Ref.current = f2;
               drawVideo2(f2);
             }
           }

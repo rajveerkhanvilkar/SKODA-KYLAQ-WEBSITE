@@ -83,15 +83,11 @@ export const PartsSection: React.FC = () => {
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
-    const { width, height, dpr } = dimensionsRef.current;
     const clampedIndex = Math.min(TOTAL_PARTS_FRAMES - 1, Math.max(0, Math.round(index)));
-
-    ctx.save();
-    ctx.scale(dpr, dpr);
-    if (framesRef.current[clampedIndex]) {
-      drawImageToCanvas(ctx, framesRef.current[clampedIndex], width, height, "cover");
+    const img = framesRef.current[clampedIndex];
+    if (img) {
+      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "cover");
     }
-    ctx.restore();
   };
 
   // Draw initial frame when loaded
@@ -102,12 +98,14 @@ export const PartsSection: React.FC = () => {
     }
   }, [isLoaded]);
 
-  // GSAP ScrollTrigger: Slow, smooth, lag-free scrub through parts video details
+  const lastDrawnFrameRef = useRef<number>(-1);
+
+  // GSAP ScrollTrigger: Responsive, buttery-smooth scrub for Parts Video
   useEffect(() => {
     if (!isLoaded || !containerRef.current || !stickyRef.current) return;
 
     const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-    const pinDistance = isMobile ? 2600 : 3600;
+    const pinDistance = isMobile ? 1600 : 2200;
     const PLAY_ZONE = 0.88;
 
     const ctx = gsap.context(() => {
@@ -119,7 +117,7 @@ export const PartsSection: React.FC = () => {
         pinSpacing: true,
         anticipatePin: 0,
         refreshPriority: 2, // Pinned between Hero (3) and Colorways (1)
-        scrub: 0.35, // Responsive, buttery-smooth scrubbing with zero lag
+        scrub: 0.15, // Responsive, buttery-smooth scrub with zero perceptible lag
         onUpdate: (self) => {
           const progress = Math.min(1, Math.max(0, self.progress));
           const videoProgress = Math.min(1, progress / PLAY_ZONE);
@@ -128,8 +126,8 @@ export const PartsSection: React.FC = () => {
             Math.max(0, Math.round(videoProgress * (TOTAL_PARTS_FRAMES - 1)))
           );
 
-          if (f !== frameIndexRef.current) {
-            frameIndexRef.current = f;
+          if (f !== lastDrawnFrameRef.current) {
+            lastDrawnFrameRef.current = f;
             drawFrame(f);
           }
         },
