@@ -52,8 +52,11 @@ export const StartingVideoSection: React.FC<StartingVideoSectionProps> = ({
           </button>
         </div>
 
-        {/* Video Player Container */}
-        <div className="relative aspect-video max-w-6xl h-[65vh] max-h-[600px] mx-auto rounded-3xl overflow-hidden border border-white/15 shadow-2xl bg-black/80 group">
+        {/* Video Player Container - Expansive 16:9 Cinema Fitting */}
+        <div
+          className="relative aspect-video mx-auto rounded-3xl overflow-hidden border border-white/15 shadow-2xl bg-black group flex items-center justify-center"
+          style={{ width: "min(100%, calc(80vh * 16 / 9))", maxWidth: "1400px" }}
+        >
           <video
             ref={videoRef}
             src="/videos/intro.mp4"
@@ -64,7 +67,7 @@ export const StartingVideoSection: React.FC<StartingVideoSectionProps> = ({
             preload="metadata"
             disablePictureInPicture
             controlsList="nodownload nofullscreen noremoteplayback"
-            className="w-full h-full object-contain bg-black"
+            className="w-full h-full object-cover bg-black"
           />
 
           {/* Video Overlay Controls */}

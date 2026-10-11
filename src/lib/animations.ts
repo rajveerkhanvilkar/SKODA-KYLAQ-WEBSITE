@@ -62,20 +62,22 @@ export function drawImageToCanvas(
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "medium";
 
-  // Only clear canvas in contain mode (in cover mode the image overwrites 100% of pixels)
-  if (fit === "contain") {
-    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-  }
+  // Clear canvas before drawing
+  ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
   const imgRatio = imgWidth / imgHeight;
   const canvasRatio = canvasWidth / canvasHeight;
+
+  // On portrait mobile (canvasRatio < 1.0), use contain so the full car remains visible and unclipped.
+  // On landscape/desktop (canvasRatio >= 1.0), use cover to guarantee 100% edge-to-edge full screen coverage with zero black bars.
+  const effectiveFit = fit === "cover" && canvasRatio < 1.0 ? "contain" : fit;
 
   let drawW = canvasWidth;
   let drawH = canvasHeight;
   let offsetX = 0;
   let offsetY = 0;
 
-  if (fit === "contain") {
+  if (effectiveFit === "contain") {
     if (canvasRatio > imgRatio) {
       drawH = canvasHeight;
       drawW = canvasHeight * imgRatio;
@@ -86,7 +88,7 @@ export function drawImageToCanvas(
       offsetY = (canvasHeight - drawH) / 2;
     }
   } else {
-    // Cover mode
+    // Cover mode - 100% edge-to-edge full screen with zero black bars
     if (canvasRatio > imgRatio) {
       drawW = canvasWidth;
       drawH = canvasWidth / imgRatio;

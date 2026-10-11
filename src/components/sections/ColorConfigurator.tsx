@@ -123,22 +123,24 @@ export const ColorConfigurator: React.FC = () => {
     };
   }, []);
 
-  // Update canvas size on resize only
+  // Update canvas size on resize only - Fullscreen responsive viewport
   useEffect(() => {
     const updateDimensions = () => {
       if (typeof window === "undefined") return;
       const w = window.innerWidth;
       const h = window.innerHeight;
       const dpr = Math.min(window.devicePixelRatio || 2, 2.0);
-      dimensionsRef.current = { width: w, height: h, dpr };
+      const cw = Math.round(w * dpr) || 1920;
+      const ch = Math.round(h * dpr) || 1080;
+      dimensionsRef.current = { width: cw, height: ch, dpr };
 
       if (canvas1Ref.current) {
-        canvas1Ref.current.width = Math.floor(w * dpr);
-        canvas1Ref.current.height = Math.floor(h * dpr);
+        canvas1Ref.current.width = cw;
+        canvas1Ref.current.height = ch;
       }
       if (canvas2Ref.current) {
-        canvas2Ref.current.width = Math.floor(w * dpr);
-        canvas2Ref.current.height = Math.floor(h * dpr);
+        canvas2Ref.current.width = cw;
+        canvas2Ref.current.height = ch;
       }
 
       drawVideo1(frameIndex1Ref.current);
@@ -163,7 +165,7 @@ export const ColorConfigurator: React.FC = () => {
 
     const img = seq1Ref.current.getFrame(index);
     if (img) {
-      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "contain");
+      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "cover");
     }
   };
 
@@ -175,7 +177,7 @@ export const ColorConfigurator: React.FC = () => {
 
     const img = seq2Ref.current.getFrame(index);
     if (img) {
-      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "contain");
+      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "cover");
     }
   };
 
@@ -335,24 +337,24 @@ export const ColorConfigurator: React.FC = () => {
           </AnimatePresence>
         </div>
 
-        {/* Premium Negative-Space 16:9 Stage (Zero Cropping, 90% Desktop Width) */}
-        <div className="relative z-10 w-full max-w-[94vw] lg:max-w-[90vw] xl:max-w-[1580px] h-[78vh] max-h-[820px] aspect-[16/9] flex items-center justify-center bg-black rounded-2xl overflow-hidden p-0 m-0 border border-white/10 shadow-[0_25px_60px_rgba(0,0,0,0.85)]">
+        {/* Fullscreen Video Canvas Stage */}
+        <div className="relative z-10 w-full h-full flex items-center justify-center bg-black overflow-hidden p-0 m-0">
           {/* Canvas 1: Yellow & Grey Car Pass */}
           <canvas
             ref={canvas1Ref}
-            className="absolute inset-0 w-full h-full object-contain pointer-events-none will-change-transform"
+            className="absolute inset-0 w-full h-full pointer-events-none will-change-transform"
             style={{ opacity: 1 }}
           />
 
           {/* Canvas 2: Silver & Tornado Red Car Pass */}
           <canvas
             ref={canvas2Ref}
-            className="absolute inset-0 w-full h-full object-contain pointer-events-none will-change-transform"
+            className="absolute inset-0 w-full h-full pointer-events-none will-change-transform"
             style={{ opacity: 0 }}
           />
 
           {/* Cinematic Vignette Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20 pointer-events-none z-20" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/30 pointer-events-none z-20" />
         </div>
       </div>
     </section>
