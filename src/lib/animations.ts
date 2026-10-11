@@ -44,7 +44,17 @@ export async function preloadFrames(
 }
 
 /**
- * High-quality HD canvas renderer with image smoothing and high DPI support.
+ * Cinematic full-viewport canvas renderer.
+ *
+ * Strategy:
+ *  - The canvas BACKING pixels = window.innerWidth × window.innerHeight (NO DPR multiplication).
+ *    DPR upscaling causes a 1920-wide source to be drawn into a 3840px backing and then
+ *    shrunk back by CSS — this wastes GPU memory and causes subtle blur on mid-range GPUs.
+ *    At 1920×1080 source the native 1:1 pixel mapping on a 1080p monitor is already perfect.
+ *  - CONTAIN: image is letterboxed (black bars) — the full car is always visible.
+ *  - COVER: image is cropped to fill — nothing to the sides wasted (used for hero/parts where
+ *    source is 16:9 and container is 16:9 so no cropping occurs in practice).
+ *  - Ultra-wide (>16:9 container): draw ambient blurred extension on flanks + sharp 16:9 center.
  */
 export function drawImageToCanvas(
   ctx: CanvasRenderingContext2D,
@@ -53,86 +63,107 @@ export function drawImageToCanvas(
   canvasHeight: number,
   fit: "contain" | "cover" = "contain"
 ) {
-  const imgWidth = img instanceof HTMLImageElement ? img.naturalWidth || 1920 : img.videoWidth || 1920;
-  const imgHeight = img instanceof HTMLImageElement ? img.naturalHeight || 1080 : img.videoHeight || 1080;
+  const srcW =
+    img instanceof HTMLImageElement
+      ? img.naturalWidth || 1920
+      : img.videoWidth || 1920;
+  const srcH =
+    img instanceof HTMLImageElement
+      ? img.naturalHeight || 1080
+      : img.videoHeight || 1080;
 
-  if (!imgWidth || !imgHeight) return;
+  if (!srcW || !srcH) return;
 
-  // Hardware-accelerated bilinear filtering for maximum sharpness and 60FPS fluid motion
+  // Maximum quality bilinear filtering — native GPU path, zero overhead
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
 
-  // Clear canvas before drawing
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-  const imgRatio = imgWidth / imgHeight;
+  const srcRatio = srcW / srcH;
   const canvasRatio = canvasWidth / canvasHeight;
 
-  // CASE 1: ULTRA-WIDE SCREENS (canvasRatio > imgRatio + 0.05, e.g. 21:9 monitors, laptop viewports)
-  // Preserve 16:9 native car footage undistorted & uncropped in center ("contain"),
-  // and fill wide flanks with a darkened ambient edge extension from the same footage.
-  if (canvasRatio > imgRatio + 0.05) {
-    // 1a. Background Ambient Extension: scaled duplicate filling the ultra-wide bounds
-    const bgW = canvasWidth;
-    const bgH = canvasWidth / imgRatio;
-    const bgOffsetY = (canvasHeight - bgH) / 2;
-
+  // ── ULTRA-WIDE SCREENS (e.g. 21:9, 32:9) ────────────────────────────────
+  // The source is 16:9; the container is wider. We must NOT stretch the car.
+  // Solution: draw 16:9 footage centred at full height, extend flanks with a
+  // darkened blurred duplicate to fill dead space.
+  if (canvasRatio > srcRatio + 0.03) {
+    // 1. Background: stretched duplicate at very low opacity to fill width
+    const bgH = canvasWidth / srcRatio;
+    const bgOffY = (canvasHeight - bgH) / 2;
     ctx.save();
-    ctx.globalAlpha = 0.28;
-    ctx.drawImage(img, 0, bgOffsetY, bgW, bgH);
+    ctx.globalAlpha = 0.25;
+    ctx.filter = "blur(8px)";
+    ctx.drawImage(img, 0, bgOffY, canvasWidth, bgH);
     ctx.restore();
 
-    // 1b. Dark Emerald Studio Vignette to gently fade ambient flanks into pure black
-    const grad = ctx.createRadialGradient(
+    // 2. Dark vignette over background to prevent distraction
+    const vgn = ctx.createRadialGradient(
       canvasWidth / 2,
       canvasHeight / 2,
-      canvasHeight * 0.35,
+      canvasHeight * 0.3,
       canvasWidth / 2,
       canvasHeight / 2,
-      canvasWidth * 0.65
+      canvasWidth * 0.6
     );
-    grad.addColorStop(0, "rgba(0, 0, 0, 0.3)");
-    grad.addColorStop(0.65, "rgba(5, 11, 8, 0.85)");
-    grad.addColorStop(1, "rgba(0, 0, 0, 0.98)");
-    ctx.fillStyle = grad;
+    vgn.addColorStop(0, "rgba(0,0,0,0.15)");
+    vgn.addColorStop(0.55, "rgba(0,0,0,0.80)");
+    vgn.addColorStop(1, "rgba(0,0,0,0.97)");
+    ctx.fillStyle = vgn;
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-    // 1c. Primary Sharp Footage: 100% full height, perfectly centered, native 16:9 aspect ratio, uncropped
+    // 3. Primary footage: full height, perfectly centred, native 16:9
     const fgH = canvasHeight;
-    const fgW = canvasHeight * imgRatio;
-    const fgOffsetX = (canvasWidth - fgW) / 2;
-
-    ctx.drawImage(img, fgOffsetX, 0, fgW, fgH);
+    const fgW = canvasHeight * srcRatio;
+    const fgX = (canvasWidth - fgW) / 2;
+    ctx.drawImage(img, fgX, 0, fgW, fgH);
+    return;
   }
-  // CASE 2: TALL / MOBILE PORTRAIT (canvasRatio < 1.0)
-  // Fill 100% of mobile screen width, centered vertically without cropping car front/rear
-  else if (canvasRatio < 1.0) {
+
+  // ── PORTRAIT / MOBILE (<1.0 ratio) ───────────────────────────────────────
+  // Fill full width; centre vertically. Car proportions are never distorted.
+  if (canvasRatio < 0.9) {
     const drawW = canvasWidth;
-    const drawH = canvasWidth / imgRatio;
-    const offsetY = (canvasHeight - drawH) / 2;
-
-    ctx.drawImage(img, 0, offsetY, drawW, drawH);
+    const drawH = canvasWidth / srcRatio;
+    const offY = (canvasHeight - drawH) / 2;
+    ctx.drawImage(img, 0, offY, drawW, drawH);
+    return;
   }
-  // CASE 3: STANDARD 16:9 / NEAR-16:9 DISPLAYS (Desktop 1920x1080, 2560x1440, etc.)
-  // Naturally fills the screen edge-to-edge
-  else {
-    let drawW = canvasWidth;
-    let drawH = canvasHeight;
-    let offsetX = 0;
-    let offsetY = 0;
 
-    if (canvasRatio > imgRatio) {
+  // ── STANDARD / NEAR-16:9 DISPLAYS ────────────────────────────────────────
+  // "contain" → never crop, letterbox if needed.
+  // "cover"   → fill edge-to-edge, slight crop acceptable.
+  let drawW: number, drawH: number, offX: number, offY: number;
+
+  if (fit === "cover") {
+    // Scale so the shorter axis fills the canvas
+    if (canvasRatio > srcRatio) {
       drawW = canvasWidth;
-      drawH = canvasWidth / imgRatio;
-      offsetY = (canvasHeight - drawH) / 2;
+      drawH = canvasWidth / srcRatio;
+      offX = 0;
+      offY = (canvasHeight - drawH) / 2;
     } else {
       drawH = canvasHeight;
-      drawW = canvasHeight * imgRatio;
-      offsetX = (canvasWidth - drawW) / 2;
+      drawW = canvasHeight * srcRatio;
+      offX = (canvasWidth - drawW) / 2;
+      offY = 0;
     }
-
-    ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+  } else {
+    // contain: scale so the longer axis fits the canvas
+    if (canvasRatio > srcRatio) {
+      drawH = canvasHeight;
+      drawW = canvasHeight * srcRatio;
+      offX = (canvasWidth - drawW) / 2;
+      offY = 0;
+    } else {
+      drawW = canvasWidth;
+      drawH = canvasWidth / srcRatio;
+      offX = 0;
+      offY = (canvasHeight - drawH) / 2;
+    }
   }
+
+  ctx.drawImage(img, offX, offY, drawW, drawH);
 }
 
 /**
@@ -149,4 +180,3 @@ export function drawBlendedFramesToCanvas(
 ) {
   drawImageToCanvas(ctx, imgA, canvasWidth, canvasHeight, fit);
 }
-

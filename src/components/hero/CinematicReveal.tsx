@@ -59,24 +59,23 @@ export const CinematicReveal: React.FC = () => {
     };
   }, []);
 
-  // Update canvas size on resize only - Fullscreen responsive viewport
+  // Update canvas size on resize — canvas backing = CSS pixels (no DPR multiply)
+  // This gives native 1:1 pixel mapping for 1920×1080 frames on 1080p monitors.
+  // Browser GPU handles DPR upscaling cleanly on HiDPI screens.
   useEffect(() => {
     const updateDimensions = () => {
       if (typeof window === "undefined") return;
       const w = window.innerWidth;
       const h = window.innerHeight;
-      const dpr = Math.min(window.devicePixelRatio || 2, 2.0);
-      const cw = Math.round(w * dpr) || 1920;
-      const ch = Math.round(h * dpr) || 1080;
-      dimensionsRef.current = { width: cw, height: ch, dpr };
+      dimensionsRef.current = { width: w, height: h, dpr: window.devicePixelRatio || 1 };
 
       if (canvas1Ref.current) {
-        canvas1Ref.current.width = cw;
-        canvas1Ref.current.height = ch;
+        canvas1Ref.current.width = w;
+        canvas1Ref.current.height = h;
       }
       if (canvas2Ref.current) {
-        canvas2Ref.current.width = cw;
-        canvas2Ref.current.height = ch;
+        canvas2Ref.current.width = w;
+        canvas2Ref.current.height = h;
       }
 
       drawVideo1(frameIndex1Ref.current);
@@ -100,7 +99,7 @@ export const CinematicReveal: React.FC = () => {
 
     const img = seq1Ref.current.getFrame(index);
     if (img) {
-      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "cover");
+      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "contain");
     }
   };
 
@@ -113,7 +112,7 @@ export const CinematicReveal: React.FC = () => {
 
     const img = seq2Ref.current.getFrame(index);
     if (img) {
-      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "cover");
+      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "contain");
     }
   };
 
