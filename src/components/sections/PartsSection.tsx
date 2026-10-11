@@ -22,7 +22,7 @@ export const PartsSection: React.FC = () => {
     dpr: 1,
   });
 
-  // Preload all 240 frames of parts video.mp4
+  // Preload all 240 frames of new parts video.mp4
   useEffect(() => {
     let isMounted = true;
     let loadedCount = 0;
