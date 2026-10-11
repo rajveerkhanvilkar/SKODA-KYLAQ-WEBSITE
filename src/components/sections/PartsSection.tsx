@@ -137,7 +137,7 @@ export const PartsSection: React.FC = () => {
         pinSpacing: true,
         anticipatePin: 0,
         refreshPriority: 2, // Pinned between Hero (3) and Colorways (1)
-        scrub: 0.15, // Responsive, buttery-smooth scrub with zero perceptible lag
+        scrub: 0.6, // Calibrated 0.6s scrub for velvety-soft cinematic interpolation
         onUpdate: (self) => {
           const progress = Math.min(1, Math.max(0, self.progress));
           const videoProgress = Math.min(1, progress / PLAY_ZONE);

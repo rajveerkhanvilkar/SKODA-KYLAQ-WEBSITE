@@ -58,9 +58,9 @@ export function drawImageToCanvas(
 
   if (!imgWidth || !imgHeight) return;
 
-  // Hardware-accelerated bilinear filtering for 60-120FPS buttery smoothness
+  // Hardware-accelerated bilinear filtering for maximum sharpness and 60FPS fluid motion
   ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "medium";
+  ctx.imageSmoothingQuality = "high";
 
   // Clear canvas before drawing
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
@@ -68,39 +68,71 @@ export function drawImageToCanvas(
   const imgRatio = imgWidth / imgHeight;
   const canvasRatio = canvasWidth / canvasHeight;
 
-  // On portrait mobile (canvasRatio < 1.0), use contain so the full car remains visible and unclipped.
-  // On landscape/desktop (canvasRatio >= 1.0), use cover to guarantee 100% edge-to-edge full screen coverage with zero black bars.
-  const effectiveFit = fit === "cover" && canvasRatio < 1.0 ? "contain" : fit;
+  // CASE 1: ULTRA-WIDE SCREENS (canvasRatio > imgRatio + 0.05, e.g. 21:9 monitors, laptop viewports)
+  // Preserve 16:9 native car footage undistorted & uncropped in center ("contain"),
+  // and fill wide flanks with a darkened ambient edge extension from the same footage.
+  if (canvasRatio > imgRatio + 0.05) {
+    // 1a. Background Ambient Extension: scaled duplicate filling the ultra-wide bounds
+    const bgW = canvasWidth;
+    const bgH = canvasWidth / imgRatio;
+    const bgOffsetY = (canvasHeight - bgH) / 2;
 
-  let drawW = canvasWidth;
-  let drawH = canvasHeight;
-  let offsetX = 0;
-  let offsetY = 0;
+    ctx.save();
+    ctx.globalAlpha = 0.28;
+    ctx.drawImage(img, 0, bgOffsetY, bgW, bgH);
+    ctx.restore();
 
-  if (effectiveFit === "contain") {
-    if (canvasRatio > imgRatio) {
-      drawH = canvasHeight;
-      drawW = canvasHeight * imgRatio;
-      offsetX = (canvasWidth - drawW) / 2;
-    } else {
-      drawW = canvasWidth;
-      drawH = canvasWidth / imgRatio;
-      offsetY = (canvasHeight - drawH) / 2;
-    }
-  } else {
-    // Cover mode - 100% edge-to-edge full screen with zero black bars
-    if (canvasRatio > imgRatio) {
-      drawW = canvasWidth;
-      drawH = canvasWidth / imgRatio;
-      offsetY = (canvasHeight - drawH) / 2;
-    } else {
-      drawH = canvasHeight;
-      drawW = canvasHeight * imgRatio;
-      offsetX = (canvasWidth - drawW) / 2;
-    }
+    // 1b. Dark Emerald Studio Vignette to gently fade ambient flanks into pure black
+    const grad = ctx.createRadialGradient(
+      canvasWidth / 2,
+      canvasHeight / 2,
+      canvasHeight * 0.35,
+      canvasWidth / 2,
+      canvasHeight / 2,
+      canvasWidth * 0.65
+    );
+    grad.addColorStop(0, "rgba(0, 0, 0, 0.3)");
+    grad.addColorStop(0.65, "rgba(5, 11, 8, 0.85)");
+    grad.addColorStop(1, "rgba(0, 0, 0, 0.98)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    // 1c. Primary Sharp Footage: 100% full height, perfectly centered, native 16:9 aspect ratio, uncropped
+    const fgH = canvasHeight;
+    const fgW = canvasHeight * imgRatio;
+    const fgOffsetX = (canvasWidth - fgW) / 2;
+
+    ctx.drawImage(img, fgOffsetX, 0, fgW, fgH);
   }
+  // CASE 2: TALL / MOBILE PORTRAIT (canvasRatio < 1.0)
+  // Fill 100% of mobile screen width, centered vertically without cropping car front/rear
+  else if (canvasRatio < 1.0) {
+    const drawW = canvasWidth;
+    const drawH = canvasWidth / imgRatio;
+    const offsetY = (canvasHeight - drawH) / 2;
 
-  ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+    ctx.drawImage(img, 0, offsetY, drawW, drawH);
+  }
+  // CASE 3: STANDARD 16:9 / NEAR-16:9 DISPLAYS (Desktop 1920x1080, 2560x1440, etc.)
+  // Naturally fills the screen edge-to-edge
+  else {
+    let drawW = canvasWidth;
+    let drawH = canvasHeight;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    if (canvasRatio > imgRatio) {
+      drawW = canvasWidth;
+      drawH = canvasWidth / imgRatio;
+      offsetY = (canvasHeight - drawH) / 2;
+    } else {
+      drawH = canvasHeight;
+      drawW = canvasHeight * imgRatio;
+      offsetX = (canvasWidth - drawW) / 2;
+    }
+
+    ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+  }
 }
 
 /**

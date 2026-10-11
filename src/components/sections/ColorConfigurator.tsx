@@ -208,7 +208,7 @@ export const ColorConfigurator: React.FC = () => {
         pinSpacing: true,
         anticipatePin: 0,
         refreshPriority: 1, // Computed after upstream pinned sections
-        scrub: 0.15, // Responsive, buttery-smooth scrub with zero perceptible lag
+        scrub: 0.6, // Calibrated 0.6s scrub for velvety-soft cinematic interpolation
         onUpdate: (self) => {
           const progress = Math.min(1, Math.max(0, self.progress));
           const c1 = canvas1Ref.current;
