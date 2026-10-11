@@ -26,7 +26,7 @@ export const CinematicReveal: React.FC = () => {
     dpr: 1,
   });
 
-  // Preload BOTH Video 1 (1st car video starting.mp4) and Video 2 (gemini_generated_video_e5b6e618_gwr_video_mvp.mp4)
+  // Preload BOTH Video 1 (1st car video starting.mp4) and Video 2 (2nd entry video combine with 1st start.mp4)
   useEffect(() => {
     let isMounted = true;
     let loaded1 = 0;
@@ -61,7 +61,7 @@ export const CinematicReveal: React.FC = () => {
         checkComplete();
       };
 
-      // Video 2: frames (gemini_generated_video_e5b6e618_gwr_video_mvp.mp4)
+      // Video 2: frames (2nd entry video combine with 1st start.mp4)
       const img2 = new window.Image();
       img2.src = `/frames/frame_${String(i).padStart(3, "0")}.webp`;
       img2.onload = () => {
@@ -155,7 +155,7 @@ export const CinematicReveal: React.FC = () => {
   }, [isLoaded]);
 
   // Combined Scroll Video: 1st Video (1st car video starting.mp4)
-  // then combined with 2nd Video (gemini_generated_video_e5b6e618_gwr_video_mvp.mp4) which plays to the VERY LAST FRAME!
+  // then combined with 2nd Video (2nd entry video combine with 1st start.mp4) which plays to the VERY LAST FRAME!
   useEffect(() => {
     if (!isLoaded || !containerRef.current || !stickyRef.current) return;
 
@@ -208,7 +208,7 @@ export const CinematicReveal: React.FC = () => {
               drawVideo2(0);
             }
           }
-          // ZONE 3: 2nd Video (gemini_generated_video_e5b6e618_gwr_video_mvp.mp4) - Progress 0.46 -> 0.84
+          // ZONE 3: 2nd Video (2nd entry video combine with 1st start.mp4) - Progress 0.46 -> 0.84
           // Guaranteed to play every frame from 0 up to frame 239 (the cockpit interior last frame)!
           else if (progress <= 0.84) {
             if (c1) c1.style.opacity = "0";
@@ -263,7 +263,7 @@ export const CinematicReveal: React.FC = () => {
             style={{ opacity: 1 }}
           />
 
-          {/* 2nd Video Canvas: gemini_generated_video_e5b6e618_gwr_video_mvp.mp4 */}
+          {/* 2nd Video Canvas: 2nd entry video combine with 1st start.mp4 */}
           <canvas
             ref={canvas2Ref}
             className="absolute inset-0 w-full h-full object-cover pointer-events-none will-change-transform"
