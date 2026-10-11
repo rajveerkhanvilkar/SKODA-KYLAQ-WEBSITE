@@ -2,73 +2,63 @@
 
 import React from "react";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface LogoLoaderProps {
-  progress: number;
   isReady: boolean;
 }
 
-export const LogoLoader: React.FC<LogoLoaderProps> = ({ progress, isReady }) => {
-  if (isReady) return null;
-
+export const LogoLoader: React.FC<LogoLoaderProps> = ({ isReady }) => {
   return (
-    <motion.div
-      initial={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.8, ease: "easeInOut" }}
-      className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center p-6 select-none"
-    >
-      {/* Large Crisp Škoda Brand Logo (Pure Black Background - NO GLOW) */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 1, ease: "easeOut" }}
-        className="relative w-36 h-36 sm:w-48 sm:h-48 mb-8"
-      >
-        <Image
-          src="/skoda-logo.png"
-          alt="Škoda Official Logo"
-          fill
-          priority
-          className="object-contain"
-        />
-      </motion.div>
+    <AnimatePresence>
+      {!isReady && (
+        <motion.div
+          key="loader"
+          initial={{ opacity: 1 }}
+          exit={{ opacity: 0, scale: 1.03 }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center p-6 select-none pointer-events-none"
+        >
+          {/* Subtle Ambient Backlight Glow */}
+          <div className="absolute w-[500px] h-[500px] bg-[#00A878]/10 blur-[150px] rounded-full pointer-events-none" />
 
-      {/* Brand Name Typography */}
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, delay: 0.2 }}
-        className="text-center"
-      >
-        <h1 className="text-3xl sm:text-5xl font-extrabold font-heading text-[#F3F0E8] uppercase tracking-[0.25em] leading-none mb-2">
-          ŠKODA KYLAQ
-        </h1>
-        <p className="text-xs font-mono tracking-[0.4em] text-zinc-400 uppercase">
-          AUTOMOTIVE DIGITAL CINEMA
-        </p>
-      </motion.div>
+          {/* Large Crisp Official Škoda Logo */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.85, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+            className="relative w-36 h-36 sm:w-48 sm:h-48 mb-8 z-10"
+          >
+            <Image
+              src="/skoda-logo.png"
+              alt="Škoda Official Logo"
+              fill
+              priority
+              className="object-contain drop-shadow-[0_10px_35px_rgba(0,168,120,0.25)]"
+            />
+          </motion.div>
 
-      {/* Minimal Progress Bar */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.4 }}
-        className="mt-12 flex flex-col items-center w-full max-w-xs"
-      >
-        <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden mb-3 p-0.5 border border-white/5">
-          <div
-            className="h-full bg-[#00A878] rounded-full transition-all duration-300 ease-out"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+          {/* Welcome Text & Brand Typography */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.25, ease: "easeOut" }}
+            className="text-center flex flex-col items-center max-w-xl z-10"
+          >
+            <div className="px-4 py-1 rounded-full bg-white/[0.06] border border-white/15 backdrop-blur-md text-[11px] font-mono tracking-[0.35em] text-[#00A878] uppercase mb-4 shadow-xl">
+              SIMPLY CLEVER
+            </div>
 
-        <div className="flex justify-between w-full text-[10px] font-mono tracking-widest text-zinc-400 uppercase">
-          <span>LOADING ASSETS</span>
-          <span className="text-white font-bold">{progress}%</span>
-        </div>
-      </motion.div>
-    </motion.div>
+            <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold font-heading text-[#F3F0E8] uppercase tracking-[0.16em] leading-tight mb-3 drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)]">
+              WELCOME TO <span className="text-[#C4D600]">ŠKODA</span>
+            </h1>
+
+            <p className="text-xs sm:text-sm font-mono tracking-[0.35em] text-zinc-400 uppercase">
+              THE ALL-NEW ŠKODA KYLAQ
+            </p>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };

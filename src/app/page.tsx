@@ -21,23 +21,15 @@ import { CustomCursor } from "@/components/ui/CustomCursor";
 
 export default function HomePage() {
   const [isMuted, setIsMuted] = useState(true);
-  const [loadProgress, setLoadProgress] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    let current = 0;
-    const interval = setInterval(() => {
-      current += 10;
-      if (current >= 100) {
-        setLoadProgress(100);
-        setIsLoaded(true);
-        clearInterval(interval);
-      } else {
-        setLoadProgress(current);
-      }
-    }, 100);
+    // Keep "Welcome to Škoda" splash screen for exactly 2 seconds
+    const timer = setTimeout(() => {
+      setIsLoaded(true);
+    }, 2000);
 
-    return () => clearInterval(interval);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleToggleSound = () => {
@@ -57,8 +49,8 @@ export default function HomePage() {
         {/* Custom Škoda Chrome Emblem Cursor */}
         <CustomCursor />
 
-        {/* Phase 2: Brand Logo Loading Screen */}
-        <LogoLoader progress={loadProgress} isReady={isLoaded} />
+        {/* Phase 2: Brand Logo Welcome Screen (2 Seconds, No Loading Bar) */}
+        <LogoLoader isReady={isLoaded} />
 
         {/* Audio Ambience Engine */}
         <AudioAmbienceEngine isMuted={isMuted} />
