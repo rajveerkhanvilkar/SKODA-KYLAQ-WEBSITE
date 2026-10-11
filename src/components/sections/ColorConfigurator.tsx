@@ -67,7 +67,7 @@ export const ColorConfigurator: React.FC = () => {
     dpr: 1,
   });
 
-  // Preload all 240 frames of Video 1 (Yellow & Grey) and 240 frames of Video 2 (Silver & Tornado Red)
+  // Preload all 240 frames of Video 1 (NEW yellow and grey car color video) and 240 frames of Video 2 (NEW silver and tornado red video)
   useEffect(() => {
     let isMounted = true;
     let loaded1 = 0;
