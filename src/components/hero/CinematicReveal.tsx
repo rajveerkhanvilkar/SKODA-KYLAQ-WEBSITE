@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect, useState } from "react";
-import { gsap, ScrollTrigger, drawBlendedFramesToCanvas } from "@/lib/animations";
+import { gsap, ScrollTrigger, drawImageToCanvas } from "@/lib/animations";
 
 const TOTAL_FRAMES_PER_VIDEO = 240;
 
@@ -107,60 +107,38 @@ export const CinematicReveal: React.FC = () => {
     return () => window.removeEventListener("resize", updateDimensions);
   }, []);
 
-  // Continuous Sub-Frame Blended Canvas renderer for Video 1 (Zero Frame Cuts)
-  const drawVideo1 = (floatIndex: number) => {
+  // High-performance Canvas renderer for Video 1 (Single Crisp Frame, Zero Ghosting)
+  const drawVideo1 = (index: number) => {
     const canvas = canvas1Ref.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
     const { width, height, dpr } = dimensionsRef.current;
-    const clamped = Math.max(0, Math.min(TOTAL_FRAMES_PER_VIDEO - 1, floatIndex));
-    const idxA = Math.floor(clamped);
-    const idxB = Math.min(TOTAL_FRAMES_PER_VIDEO - 1, idxA + 1);
-    const blend = clamped - idxA;
+    const clampedIndex = Math.min(TOTAL_FRAMES_PER_VIDEO - 1, Math.max(0, Math.round(index)));
 
     ctx.save();
     ctx.scale(dpr, dpr);
-    if (frames1Ref.current[idxA]) {
-      drawBlendedFramesToCanvas(
-        ctx,
-        frames1Ref.current[idxA],
-        frames1Ref.current[idxB],
-        blend,
-        width,
-        height,
-        "cover"
-      );
+    if (frames1Ref.current[clampedIndex]) {
+      drawImageToCanvas(ctx, frames1Ref.current[clampedIndex], width, height, "cover");
     }
     ctx.restore();
   };
 
-  // Continuous Sub-Frame Blended Canvas renderer for Video 2 (Zero Frame Cuts)
-  const drawVideo2 = (floatIndex: number) => {
+  // High-performance Canvas renderer for Video 2 (Single Crisp Frame, Zero Ghosting)
+  const drawVideo2 = (index: number) => {
     const canvas = canvas2Ref.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
     const { width, height, dpr } = dimensionsRef.current;
-    const clamped = Math.max(0, Math.min(TOTAL_FRAMES_PER_VIDEO - 1, floatIndex));
-    const idxA = Math.floor(clamped);
-    const idxB = Math.min(TOTAL_FRAMES_PER_VIDEO - 1, idxA + 1);
-    const blend = clamped - idxA;
+    const clampedIndex = Math.min(TOTAL_FRAMES_PER_VIDEO - 1, Math.max(0, Math.round(index)));
 
     ctx.save();
     ctx.scale(dpr, dpr);
-    if (frames2Ref.current[idxA]) {
-      drawBlendedFramesToCanvas(
-        ctx,
-        frames2Ref.current[idxA],
-        frames2Ref.current[idxB],
-        blend,
-        width,
-        height,
-        "cover"
-      );
+    if (frames2Ref.current[clampedIndex]) {
+      drawImageToCanvas(ctx, frames2Ref.current[clampedIndex], width, height, "cover");
     }
     ctx.restore();
   };
@@ -182,7 +160,7 @@ export const CinematicReveal: React.FC = () => {
     if (!isLoaded || !containerRef.current || !stickyRef.current) return;
 
     const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-    const pinDistance = isMobile ? 3800 : 5800;
+    const pinDistance = isMobile ? 3200 : 4600;
 
     const ctx = gsap.context(() => {
       ScrollTrigger.create({
@@ -193,7 +171,7 @@ export const CinematicReveal: React.FC = () => {
         pinSpacing: true,
         anticipatePin: 0,
         refreshPriority: 3, // Highest priority: Hero pinned first
-        scrub: 0.8, // Luxurious, buttery-smooth momentum scrub
+        scrub: 0.35, // Ultra-smooth, responsive, zero-lag scrub
         onUpdate: (self) => {
           const progress = Math.min(1, Math.max(0, self.progress));
           const c1 = canvas1Ref.current;
@@ -205,12 +183,14 @@ export const CinematicReveal: React.FC = () => {
             if (c2) c2.style.opacity = "0";
 
             const p1 = progress / 0.42;
-            const floatFrame1 = Math.min(
+            const f1 = Math.min(
               TOTAL_FRAMES_PER_VIDEO - 1,
-              Math.max(0, p1 * (TOTAL_FRAMES_PER_VIDEO - 1))
+              Math.max(0, Math.round(p1 * (TOTAL_FRAMES_PER_VIDEO - 1)))
             );
-            frameIndex1Ref.current = floatFrame1;
-            drawVideo1(floatFrame1);
+            if (f1 !== frameIndex1Ref.current) {
+              frameIndex1Ref.current = f1;
+              drawVideo1(f1);
+            }
           }
           // ZONE 2: Seamless Crossfade between 1st Video and 2nd Video - Progress 0.42 -> 0.46
           else if (progress < 0.46) {
@@ -219,10 +199,14 @@ export const CinematicReveal: React.FC = () => {
             if (c2) c2.style.opacity = `${crossRatio}`;
 
             // Ensure 1st Video is on last frame and 2nd Video is on first frame
-            frameIndex1Ref.current = TOTAL_FRAMES_PER_VIDEO - 1;
-            drawVideo1(TOTAL_FRAMES_PER_VIDEO - 1);
-            frameIndex2Ref.current = 0;
-            drawVideo2(0);
+            if (frameIndex1Ref.current !== TOTAL_FRAMES_PER_VIDEO - 1) {
+              frameIndex1Ref.current = TOTAL_FRAMES_PER_VIDEO - 1;
+              drawVideo1(TOTAL_FRAMES_PER_VIDEO - 1);
+            }
+            if (frameIndex2Ref.current !== 0) {
+              frameIndex2Ref.current = 0;
+              drawVideo2(0);
+            }
           }
           // ZONE 3: 2nd Video (2nd entry video combine with 1st start.mp4) - Progress 0.46 -> 0.84
           else if (progress <= 0.84) {
@@ -230,20 +214,24 @@ export const CinematicReveal: React.FC = () => {
             if (c2) c2.style.opacity = "1";
 
             const p2 = (progress - 0.46) / (0.84 - 0.46);
-            const floatFrame2 = Math.min(
+            const f2 = Math.min(
               TOTAL_FRAMES_PER_VIDEO - 1,
-              Math.max(0, p2 * (TOTAL_FRAMES_PER_VIDEO - 1))
+              Math.max(0, Math.round(p2 * (TOTAL_FRAMES_PER_VIDEO - 1)))
             );
-            frameIndex2Ref.current = floatFrame2;
-            drawVideo2(floatFrame2);
+            if (f2 !== frameIndex2Ref.current) {
+              frameIndex2Ref.current = f2;
+              drawVideo2(f2);
+            }
           }
           // ZONE 4: Hold Last Frame (frame 239) & Smooth Line Transition - Progress 0.84 -> 1.00
           else {
             if (c1) c1.style.opacity = "0";
             if (c2) c2.style.opacity = "1";
 
-            frameIndex2Ref.current = TOTAL_FRAMES_PER_VIDEO - 1;
-            drawVideo2(TOTAL_FRAMES_PER_VIDEO - 1);
+            if (frameIndex2Ref.current !== TOTAL_FRAMES_PER_VIDEO - 1) {
+              frameIndex2Ref.current = TOTAL_FRAMES_PER_VIDEO - 1;
+              drawVideo2(TOTAL_FRAMES_PER_VIDEO - 1);
+            }
           }
         },
       });

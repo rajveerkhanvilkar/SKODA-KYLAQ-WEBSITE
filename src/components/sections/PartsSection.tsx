@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import Image from "next/image";
-import { gsap, ScrollTrigger, drawBlendedFramesToCanvas } from "@/lib/animations";
+import { gsap, ScrollTrigger, drawImageToCanvas } from "@/lib/animations";
 
 const TOTAL_PARTS_FRAMES = 240;
 
@@ -76,31 +76,20 @@ export const PartsSection: React.FC = () => {
     return () => window.removeEventListener("resize", updateDimensions);
   }, []);
 
-  // Continuous Sub-Frame Blended Canvas renderer (Zero Visible Cuts, 60FPS)
-  const drawFrame = (floatIndex: number) => {
+  // Direct high-performance Canvas renderer (Single Crisp Frame, Zero Ghosting)
+  const drawFrame = (index: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
     const { width, height, dpr } = dimensionsRef.current;
-    const clamped = Math.max(0, Math.min(TOTAL_PARTS_FRAMES - 1, floatIndex));
-    const idxA = Math.floor(clamped);
-    const idxB = Math.min(TOTAL_PARTS_FRAMES - 1, idxA + 1);
-    const blend = clamped - idxA;
+    const clampedIndex = Math.min(TOTAL_PARTS_FRAMES - 1, Math.max(0, Math.round(index)));
 
     ctx.save();
     ctx.scale(dpr, dpr);
-    if (framesRef.current[idxA]) {
-      drawBlendedFramesToCanvas(
-        ctx,
-        framesRef.current[idxA],
-        framesRef.current[idxB],
-        blend,
-        width,
-        height,
-        "cover"
-      );
+    if (framesRef.current[clampedIndex]) {
+      drawImageToCanvas(ctx, framesRef.current[clampedIndex], width, height, "cover");
     }
     ctx.restore();
   };
@@ -118,9 +107,8 @@ export const PartsSection: React.FC = () => {
     if (!isLoaded || !containerRef.current || !stickyRef.current) return;
 
     const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-    // Generous pin distance for slow, soft, buttery-smooth inspection of vehicle parts
-    const pinDistance = isMobile ? 3800 : 5600;
-    const PLAY_ZONE = 0.85; // Complete 100% of parts video by 85% mark, hold remainder
+    const pinDistance = isMobile ? 2600 : 3600;
+    const PLAY_ZONE = 0.88;
 
     const ctx = gsap.context(() => {
       ScrollTrigger.create({
@@ -131,19 +119,19 @@ export const PartsSection: React.FC = () => {
         pinSpacing: true,
         anticipatePin: 0,
         refreshPriority: 2, // Pinned between Hero (3) and Colorways (1)
-        scrub: 0.8, // Luxurious, buttery-smooth momentum scrub
+        scrub: 0.35, // Responsive, buttery-smooth scrubbing with zero lag
         onUpdate: (self) => {
           const progress = Math.min(1, Math.max(0, self.progress));
-
-          // Continuous sub-frame mapping through all 240 frames
           const videoProgress = Math.min(1, progress / PLAY_ZONE);
-          const floatFrame = Math.min(
+          const f = Math.min(
             TOTAL_PARTS_FRAMES - 1,
-            Math.max(0, videoProgress * (TOTAL_PARTS_FRAMES - 1))
+            Math.max(0, Math.round(videoProgress * (TOTAL_PARTS_FRAMES - 1)))
           );
 
-          frameIndexRef.current = floatFrame;
-          drawFrame(floatFrame);
+          if (f !== frameIndexRef.current) {
+            frameIndexRef.current = f;
+            drawFrame(f);
+          }
         },
       });
 

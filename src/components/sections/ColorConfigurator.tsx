@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { gsap, ScrollTrigger, drawBlendedFramesToCanvas } from "@/lib/animations";
+import { gsap, ScrollTrigger, drawImageToCanvas } from "@/lib/animations";
 
 const TOTAL_COLOR_FRAMES = 240;
 
@@ -148,59 +148,37 @@ export const ColorConfigurator: React.FC = () => {
     return () => window.removeEventListener("resize", updateDimensions);
   }, []);
 
-  // Continuous Sub-Frame Blended Canvas renderers (Zero Visible Cuts, 60FPS)
-  const drawVideo1 = (floatIndex: number) => {
+  // Direct high-performance Canvas renderers (Single Crisp Frame, Zero Ghosting)
+  const drawVideo1 = (index: number) => {
     const canvas = canvas1Ref.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
     const { width, height, dpr } = dimensionsRef.current;
-    const clamped = Math.max(0, Math.min(TOTAL_COLOR_FRAMES - 1, floatIndex));
-    const idxA = Math.floor(clamped);
-    const idxB = Math.min(TOTAL_COLOR_FRAMES - 1, idxA + 1);
-    const blend = clamped - idxA;
+    const clampedIndex = Math.min(TOTAL_COLOR_FRAMES - 1, Math.max(0, Math.round(index)));
 
     ctx.save();
     ctx.scale(dpr, dpr);
-    if (frames1Ref.current[idxA]) {
-      drawBlendedFramesToCanvas(
-        ctx,
-        frames1Ref.current[idxA],
-        frames1Ref.current[idxB],
-        blend,
-        width,
-        height,
-        "cover"
-      );
+    if (frames1Ref.current[clampedIndex]) {
+      drawImageToCanvas(ctx, frames1Ref.current[clampedIndex], width, height, "cover");
     }
     ctx.restore();
   };
 
-  const drawVideo2 = (floatIndex: number) => {
+  const drawVideo2 = (index: number) => {
     const canvas = canvas2Ref.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
     const { width, height, dpr } = dimensionsRef.current;
-    const clamped = Math.max(0, Math.min(TOTAL_COLOR_FRAMES - 1, floatIndex));
-    const idxA = Math.floor(clamped);
-    const idxB = Math.min(TOTAL_COLOR_FRAMES - 1, idxA + 1);
-    const blend = clamped - idxA;
+    const clampedIndex = Math.min(TOTAL_COLOR_FRAMES - 1, Math.max(0, Math.round(index)));
 
     ctx.save();
     ctx.scale(dpr, dpr);
-    if (frames2Ref.current[idxA]) {
-      drawBlendedFramesToCanvas(
-        ctx,
-        frames2Ref.current[idxA],
-        frames2Ref.current[idxB],
-        blend,
-        width,
-        height,
-        "cover"
-      );
+    if (frames2Ref.current[clampedIndex]) {
+      drawImageToCanvas(ctx, frames2Ref.current[clampedIndex], width, height, "cover");
     }
     ctx.restore();
   };
@@ -221,8 +199,7 @@ export const ColorConfigurator: React.FC = () => {
     if (!isLoaded || !containerRef.current || !stickyRef.current) return;
 
     const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-    // Generous pin distance for slow, luxurious, lag-free inspection of car color passes
-    const pinDistance = isMobile ? 3800 : 5600;
+    const pinDistance = isMobile ? 3000 : 4200;
 
     const ctx = gsap.context(() => {
       ScrollTrigger.create({
@@ -233,7 +210,7 @@ export const ColorConfigurator: React.FC = () => {
         pinSpacing: true,
         anticipatePin: 0,
         refreshPriority: 1, // Computed after upstream pinned sections
-        scrub: 0.8, // Luxurious, buttery-smooth momentum scrub
+        scrub: 0.35, // Ultra-smooth, responsive, zero-lag scrub
         onUpdate: (self) => {
           const progress = Math.min(1, Math.max(0, self.progress));
           const c1 = canvas1Ref.current;
@@ -257,12 +234,14 @@ export const ColorConfigurator: React.FC = () => {
             if (c2) c2.style.opacity = "0";
 
             const p1 = activeProgress / 0.44;
-            const floatFrame1 = Math.min(
+            const f1 = Math.min(
               TOTAL_COLOR_FRAMES - 1,
-              Math.max(0, p1 * (TOTAL_COLOR_FRAMES - 1))
+              Math.max(0, Math.round(p1 * (TOTAL_COLOR_FRAMES - 1)))
             );
-            frameIndex1Ref.current = floatFrame1;
-            drawVideo1(floatFrame1);
+            if (f1 !== frameIndex1Ref.current) {
+              frameIndex1Ref.current = f1;
+              drawVideo1(f1);
+            }
           }
           // ZONE 2: Seamless Crossfade between 1st Video and 2nd Video - Progress 0.44 -> 0.50
           else if (activeProgress <= 0.50) {
@@ -270,10 +249,14 @@ export const ColorConfigurator: React.FC = () => {
             if (c1) c1.style.opacity = `${1 - crossRatio}`;
             if (c2) c2.style.opacity = `${crossRatio}`;
 
-            frameIndex1Ref.current = TOTAL_COLOR_FRAMES - 1;
-            drawVideo1(TOTAL_COLOR_FRAMES - 1);
-            frameIndex2Ref.current = 0;
-            drawVideo2(0);
+            if (frameIndex1Ref.current !== TOTAL_COLOR_FRAMES - 1) {
+              frameIndex1Ref.current = TOTAL_COLOR_FRAMES - 1;
+              drawVideo1(TOTAL_COLOR_FRAMES - 1);
+            }
+            if (frameIndex2Ref.current !== 0) {
+              frameIndex2Ref.current = 0;
+              drawVideo2(0);
+            }
           }
           // ZONE 3: 2nd Video (Silver & Tornado Red Car Pass) - Progress 0.50 -> 1.00
           else {
@@ -281,12 +264,14 @@ export const ColorConfigurator: React.FC = () => {
             if (c2) c2.style.opacity = "1";
 
             const p2 = (activeProgress - 0.50) / 0.50;
-            const floatFrame2 = Math.min(
+            const f2 = Math.min(
               TOTAL_COLOR_FRAMES - 1,
-              Math.max(0, p2 * (TOTAL_COLOR_FRAMES - 1))
+              Math.max(0, Math.round(p2 * (TOTAL_COLOR_FRAMES - 1)))
             );
-            frameIndex2Ref.current = floatFrame2;
-            drawVideo2(floatFrame2);
+            if (f2 !== frameIndex2Ref.current) {
+              frameIndex2Ref.current = f2;
+              drawVideo2(f2);
+            }
           }
         },
       });
