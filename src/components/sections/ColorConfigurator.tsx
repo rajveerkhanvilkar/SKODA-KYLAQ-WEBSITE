@@ -3,6 +3,7 @@
 import React, { useRef, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { gsap, ScrollTrigger, drawImageToCanvas } from "@/lib/animations";
+import { createProgressiveSequence, ProgressiveSequenceController } from "@/lib/frameLoader";
 
 const TOTAL_COLOR_FRAMES = 240;
 
@@ -57,8 +58,8 @@ export const ColorConfigurator: React.FC = () => {
 
   const frameIndex1Ref = useRef<number>(0);
   const frameIndex2Ref = useRef<number>(0);
-  const frames1Ref = useRef<HTMLImageElement[]>([]);
-  const frames2Ref = useRef<HTMLImageElement[]>([]);
+  const seq1Ref = useRef<ProgressiveSequenceController | null>(null);
+  const seq2Ref = useRef<ProgressiveSequenceController | null>(null);
 
   // Cached viewport dimensions for lag-free 60FPS canvas draw without layout thrashing
   const dimensionsRef = useRef<{ width: number; height: number; dpr: number }>({
@@ -67,57 +68,58 @@ export const ColorConfigurator: React.FC = () => {
     dpr: 1,
   });
 
-  // Preload all 240 frames of Video 1 (NEW yellow and grey car color video) and 240 frames of Video 2 (NEW silver and tornado red video)
+  // Progressive Priority Loading: Starts when user approaches Colourways section (within 1400px)
   useEffect(() => {
     let isMounted = true;
-    let loaded1 = 0;
-    let loaded2 = 0;
+    let sequenceStarted = false;
 
-    const imgs1: HTMLImageElement[] = new Array(TOTAL_COLOR_FRAMES);
-    const imgs2: HTMLImageElement[] = new Array(TOTAL_COLOR_FRAMES);
+    const startLoading = () => {
+      if (sequenceStarted || !isMounted) return;
+      sequenceStarted = true;
 
-    const checkComplete = () => {
-      if (
-        loaded1 >= TOTAL_COLOR_FRAMES &&
-        loaded2 >= TOTAL_COLOR_FRAMES &&
-        isMounted
-      ) {
-        frames1Ref.current = imgs1;
-        frames2Ref.current = imgs2;
-        setIsLoaded(true);
-      }
+      const seq1 = createProgressiveSequence({
+        folder: "/frames_color_yellow_grey",
+        totalFrames: TOTAL_COLOR_FRAMES,
+        priorityCount: 24,
+        onReady: () => {
+          if (isMounted) {
+            setIsLoaded(true);
+          }
+        },
+      });
+
+      const seq2 = createProgressiveSequence({
+        folder: "/frames_color_silver_red",
+        totalFrames: TOTAL_COLOR_FRAMES,
+        priorityCount: 16,
+      });
+
+      seq1Ref.current = seq1;
+      seq2Ref.current = seq2;
     };
 
-    for (let i = 0; i < TOTAL_COLOR_FRAMES; i++) {
-      // 1st Video: Yellow & Grey Car Pass
-      const img1 = new window.Image();
-      img1.src = `/frames_color_yellow_grey/frame_${String(i).padStart(3, "0")}.webp`;
-      img1.onload = () => {
-        imgs1[i] = img1;
-        loaded1++;
-        checkComplete();
-      };
-      img1.onerror = () => {
-        loaded1++;
-        checkComplete();
-      };
+    // Proximity trigger
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          startLoading();
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "1400px 0px" }
+    );
 
-      // 2nd Video: Silver & Tornado Red Car Pass
-      const img2 = new window.Image();
-      img2.src = `/frames_color_silver_red/frame_${String(i).padStart(3, "0")}.webp`;
-      img2.onload = () => {
-        imgs2[i] = img2;
-        loaded2++;
-        checkComplete();
-      };
-      img2.onerror = () => {
-        loaded2++;
-        checkComplete();
-      };
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    } else {
+      startLoading();
     }
 
     return () => {
       isMounted = false;
+      observer.disconnect();
+      if (seq1Ref.current) seq1Ref.current.cancel();
+      if (seq2Ref.current) seq2Ref.current.cancel();
     };
   }, []);
 
@@ -155,27 +157,25 @@ export const ColorConfigurator: React.FC = () => {
   // Direct high-performance Canvas renderers (Single Crisp Frame, Zero Ghosting)
   const drawVideo1 = (index: number) => {
     const canvas = canvas1Ref.current;
-    if (!canvas) return;
+    if (!canvas || !seq1Ref.current) return;
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
-    const clampedIndex = Math.min(TOTAL_COLOR_FRAMES - 1, Math.max(0, Math.round(index)));
-    const img = frames1Ref.current[clampedIndex];
+    const img = seq1Ref.current.getFrame(index);
     if (img) {
-      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "cover");
+      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "contain");
     }
   };
 
   const drawVideo2 = (index: number) => {
     const canvas = canvas2Ref.current;
-    if (!canvas) return;
+    if (!canvas || !seq2Ref.current) return;
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
-    const clampedIndex = Math.min(TOTAL_COLOR_FRAMES - 1, Math.max(0, Math.round(index)));
-    const img = frames2Ref.current[clampedIndex];
+    const img = seq2Ref.current.getFrame(index);
     if (img) {
-      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "cover");
+      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "contain");
     }
   };
 
@@ -335,27 +335,24 @@ export const ColorConfigurator: React.FC = () => {
           </AnimatePresence>
         </div>
 
-        {/* Fullscreen Screen-Fitted Dual Canvas Stage (60FPS Zero Lag) */}
-        <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden p-0 m-0">
+        {/* Premium Negative-Space 16:9 Stage (Zero Cropping, 90% Desktop Width) */}
+        <div className="relative z-10 w-full max-w-[94vw] lg:max-w-[90vw] xl:max-w-[1580px] h-[78vh] max-h-[820px] aspect-[16/9] flex items-center justify-center bg-black rounded-2xl overflow-hidden p-0 m-0 border border-white/10 shadow-[0_25px_60px_rgba(0,0,0,0.85)]">
           {/* Canvas 1: Yellow & Grey Car Pass */}
           <canvas
             ref={canvas1Ref}
-            className="absolute inset-0 w-full h-full object-cover pointer-events-none will-change-transform"
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none will-change-transform"
             style={{ opacity: 1 }}
           />
 
           {/* Canvas 2: Silver & Tornado Red Car Pass */}
           <canvas
             ref={canvas2Ref}
-            className="absolute inset-0 w-full h-full object-cover pointer-events-none will-change-transform"
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none will-change-transform"
             style={{ opacity: 0 }}
           />
 
           {/* Cinematic Vignette Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/60 pointer-events-none z-20" />
-
-          {/* Seamless Bottom Gradient Mask for natural transition into next section */}
-          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent pointer-events-none z-20" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20 pointer-events-none z-20" />
         </div>
       </div>
     </section>

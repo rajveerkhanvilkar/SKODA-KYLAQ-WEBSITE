@@ -4,6 +4,8 @@ import React, { useRef, useEffect, useState } from "react";
 import Image from "next/image";
 import { gsap, ScrollTrigger, drawImageToCanvas } from "@/lib/animations";
 
+import { createProgressiveSequence, ProgressiveSequenceController } from "@/lib/frameLoader";
+
 const TOTAL_PARTS_FRAMES = 240;
 
 export const PartsSection: React.FC = () => {
@@ -12,7 +14,7 @@ export const PartsSection: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const frameIndexRef = useRef<number>(0);
-  const framesRef = useRef<HTMLImageElement[]>([]);
+  const seqRef = useRef<ProgressiveSequenceController | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Cached viewport dimensions for 60FPS canvas draw without layout thrashing
@@ -22,35 +24,52 @@ export const PartsSection: React.FC = () => {
     dpr: 1,
   });
 
-  // Preload all 240 frames of new parts video.mp4
+  // Progressive Priority Loading: Starts when user approaches the section (within 1200px)
   useEffect(() => {
     let isMounted = true;
-    let loadedCount = 0;
-    const imgs: HTMLImageElement[] = new Array(TOTAL_PARTS_FRAMES);
+    let sequenceStarted = false;
 
-    const checkComplete = () => {
-      if (loadedCount >= TOTAL_PARTS_FRAMES && isMounted) {
-        framesRef.current = imgs;
-        setIsLoaded(true);
-      }
+    const startLoading = () => {
+      if (sequenceStarted || !isMounted) return;
+      sequenceStarted = true;
+
+      const seq = createProgressiveSequence({
+        folder: "/frames_parts",
+        totalFrames: TOTAL_PARTS_FRAMES,
+        priorityCount: 24,
+        onReady: () => {
+          if (isMounted) {
+            setIsLoaded(true);
+          }
+        },
+      });
+
+      seqRef.current = seq;
     };
 
-    for (let i = 0; i < TOTAL_PARTS_FRAMES; i++) {
-      const img = new window.Image();
-      img.src = `/frames_parts/frame_${String(i).padStart(3, "0")}.webp`;
-      img.onload = () => {
-        imgs[i] = img;
-        loadedCount++;
-        checkComplete();
-      };
-      img.onerror = () => {
-        loadedCount++;
-        checkComplete();
-      };
+    // Proximity trigger: load only when user scrolls near PartsSection
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          startLoading();
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "1200px 0px" }
+    );
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    } else {
+      startLoading();
     }
 
     return () => {
       isMounted = false;
+      observer.disconnect();
+      if (seqRef.current) {
+        seqRef.current.cancel();
+      }
     };
   }, []);
 
@@ -79,14 +98,13 @@ export const PartsSection: React.FC = () => {
   // Direct high-performance Canvas renderer (Single Crisp Frame, Zero Ghosting)
   const drawFrame = (index: number) => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !seqRef.current) return;
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
-    const clampedIndex = Math.min(TOTAL_PARTS_FRAMES - 1, Math.max(0, Math.round(index)));
-    const img = framesRef.current[clampedIndex];
+    const img = seqRef.current.getFrame(index);
     if (img) {
-      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "cover");
+      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "contain");
     }
   };
 
@@ -150,10 +168,10 @@ export const PartsSection: React.FC = () => {
       {/* Viewport Stage Pinned 100% Locked in Viewport by GSAP ScrollTrigger */}
       <div
         ref={stickyRef}
-        className="relative w-full h-screen overflow-hidden flex flex-col justify-between bg-black p-0 m-0"
+        className="relative w-full h-screen overflow-hidden flex flex-col justify-center items-center bg-black p-0 m-0"
       >
         {/* Sleek Floating Top-Left Badge & Title - Away from car center */}
-        <div className="absolute top-24 left-6 sm:top-28 sm:left-10 lg:left-16 z-30 pointer-events-none flex flex-col items-start max-w-lg">
+        <div className="absolute top-20 left-6 sm:top-24 sm:left-10 lg:left-16 z-30 pointer-events-none flex flex-col items-start max-w-lg">
           <div className="flex items-center gap-2 px-3.5 py-1 rounded-full bg-black/70 border border-white/20 backdrop-blur-md text-[10px] font-mono tracking-[0.3em] text-[#00A878] uppercase mb-2 shadow-xl">
             <Image src="/skoda-logo.png" alt="Škoda Logo" width={18} height={18} />
             <span>02.5 • CRAFTED PARTS &amp; ENGINEERING</span>
@@ -164,21 +182,15 @@ export const PartsSection: React.FC = () => {
           </h2>
         </div>
 
-        {/* Fullscreen Screen-Fitted Canvas Stage (Zero Lag 60FPS) */}
-        <div className="relative z-10 w-full h-full flex items-center justify-center bg-black overflow-hidden p-0 m-0">
+        {/* Premium Negative-Space 16:9 Stage (Zero Cropping, 90% Desktop Width) */}
+        <div className="relative z-10 w-full max-w-[94vw] lg:max-w-[90vw] xl:max-w-[1580px] h-[78vh] max-h-[820px] aspect-[16/9] flex items-center justify-center bg-black rounded-2xl overflow-hidden p-0 m-0 border border-white/10 shadow-[0_25px_60px_rgba(0,0,0,0.85)]">
           <canvas
             ref={canvasRef}
-            className="w-full h-full object-cover pointer-events-none will-change-transform"
+            className="w-full h-full object-contain pointer-events-none will-change-transform"
           />
 
           {/* Soft Vignette Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/40 pointer-events-none z-20" />
-
-          {/* Top Transition Gradient Bridge */}
-          <div className="absolute top-0 left-0 right-0 h-28 bg-gradient-to-b from-black to-transparent pointer-events-none z-20" />
-
-          {/* Bottom Transition Gradient Bridge into Exterior Section */}
-          <div className="absolute bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-black to-transparent pointer-events-none z-20" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20 pointer-events-none z-20" />
         </div>
       </div>
     </section>

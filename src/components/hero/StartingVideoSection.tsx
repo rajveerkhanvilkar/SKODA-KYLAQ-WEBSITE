@@ -61,7 +61,10 @@ export const StartingVideoSection: React.FC<StartingVideoSectionProps> = ({
             loop
             muted
             playsInline
-            className="w-full h-full object-cover"
+            preload="metadata"
+            disablePictureInPicture
+            controlsList="nodownload nofullscreen noremoteplayback"
+            className="w-full h-full object-contain bg-black"
           />
 
           {/* Video Overlay Controls */}
