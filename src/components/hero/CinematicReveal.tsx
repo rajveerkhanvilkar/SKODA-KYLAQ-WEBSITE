@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect, useState } from "react";
-import { gsap, ScrollTrigger, drawImageToCanvas } from "@/lib/animations";
+import { gsap, ScrollTrigger, drawBlendedFramesToCanvas } from "@/lib/animations";
 
 const TOTAL_FRAMES_PER_VIDEO = 240;
 
@@ -107,38 +107,60 @@ export const CinematicReveal: React.FC = () => {
     return () => window.removeEventListener("resize", updateDimensions);
   }, []);
 
-  // Direct high-performance Canvas renderer for Video 1
-  const drawVideo1 = (index: number) => {
+  // Continuous Sub-Frame Blended Canvas renderer for Video 1 (Zero Frame Cuts)
+  const drawVideo1 = (floatIndex: number) => {
     const canvas = canvas1Ref.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
     const { width, height, dpr } = dimensionsRef.current;
-    const clampedIndex = Math.min(TOTAL_FRAMES_PER_VIDEO - 1, Math.max(0, index));
+    const clamped = Math.max(0, Math.min(TOTAL_FRAMES_PER_VIDEO - 1, floatIndex));
+    const idxA = Math.floor(clamped);
+    const idxB = Math.min(TOTAL_FRAMES_PER_VIDEO - 1, idxA + 1);
+    const blend = clamped - idxA;
 
     ctx.save();
     ctx.scale(dpr, dpr);
-    if (frames1Ref.current[clampedIndex]) {
-      drawImageToCanvas(ctx, frames1Ref.current[clampedIndex], width, height, "cover");
+    if (frames1Ref.current[idxA]) {
+      drawBlendedFramesToCanvas(
+        ctx,
+        frames1Ref.current[idxA],
+        frames1Ref.current[idxB],
+        blend,
+        width,
+        height,
+        "cover"
+      );
     }
     ctx.restore();
   };
 
-  // Direct high-performance Canvas renderer for Video 2
-  const drawVideo2 = (index: number) => {
+  // Continuous Sub-Frame Blended Canvas renderer for Video 2 (Zero Frame Cuts)
+  const drawVideo2 = (floatIndex: number) => {
     const canvas = canvas2Ref.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
     const { width, height, dpr } = dimensionsRef.current;
-    const clampedIndex = Math.min(TOTAL_FRAMES_PER_VIDEO - 1, Math.max(0, index));
+    const clamped = Math.max(0, Math.min(TOTAL_FRAMES_PER_VIDEO - 1, floatIndex));
+    const idxA = Math.floor(clamped);
+    const idxB = Math.min(TOTAL_FRAMES_PER_VIDEO - 1, idxA + 1);
+    const blend = clamped - idxA;
 
     ctx.save();
     ctx.scale(dpr, dpr);
-    if (frames2Ref.current[clampedIndex]) {
-      drawImageToCanvas(ctx, frames2Ref.current[clampedIndex], width, height, "cover");
+    if (frames2Ref.current[idxA]) {
+      drawBlendedFramesToCanvas(
+        ctx,
+        frames2Ref.current[idxA],
+        frames2Ref.current[idxB],
+        blend,
+        width,
+        height,
+        "cover"
+      );
     }
     ctx.restore();
   };
@@ -155,7 +177,7 @@ export const CinematicReveal: React.FC = () => {
   }, [isLoaded]);
 
   // Combined Scroll Video: 1st Video (1st car video starting.mp4)
-  // then combined with 2nd Video (2nd entry video combine with 1st start.mp4) which plays to the VERY LAST FRAME!
+  // then combined with 2nd Video (2nd entry video combine with 1st start.mp4)
   useEffect(() => {
     if (!isLoaded || !containerRef.current || !stickyRef.current) return;
 
@@ -171,7 +193,7 @@ export const CinematicReveal: React.FC = () => {
         pinSpacing: true,
         anticipatePin: 0,
         refreshPriority: 3, // Highest priority: Hero pinned first
-        scrub: 0.15, // Ultra-responsive scrub
+        scrub: 0.8, // Luxurious, buttery-smooth momentum scrub
         onUpdate: (self) => {
           const progress = Math.min(1, Math.max(0, self.progress));
           const c1 = canvas1Ref.current;
@@ -183,14 +205,12 @@ export const CinematicReveal: React.FC = () => {
             if (c2) c2.style.opacity = "0";
 
             const p1 = progress / 0.42;
-            const f1 = Math.min(
+            const floatFrame1 = Math.min(
               TOTAL_FRAMES_PER_VIDEO - 1,
-              Math.floor(p1 * TOTAL_FRAMES_PER_VIDEO)
+              Math.max(0, p1 * (TOTAL_FRAMES_PER_VIDEO - 1))
             );
-            if (f1 !== frameIndex1Ref.current) {
-              frameIndex1Ref.current = f1;
-              drawVideo1(f1);
-            }
+            frameIndex1Ref.current = floatFrame1;
+            drawVideo1(floatFrame1);
           }
           // ZONE 2: Seamless Crossfade between 1st Video and 2nd Video - Progress 0.42 -> 0.46
           else if (progress < 0.46) {
@@ -199,41 +219,31 @@ export const CinematicReveal: React.FC = () => {
             if (c2) c2.style.opacity = `${crossRatio}`;
 
             // Ensure 1st Video is on last frame and 2nd Video is on first frame
-            if (frameIndex1Ref.current !== TOTAL_FRAMES_PER_VIDEO - 1) {
-              frameIndex1Ref.current = TOTAL_FRAMES_PER_VIDEO - 1;
-              drawVideo1(TOTAL_FRAMES_PER_VIDEO - 1);
-            }
-            if (frameIndex2Ref.current !== 0) {
-              frameIndex2Ref.current = 0;
-              drawVideo2(0);
-            }
+            frameIndex1Ref.current = TOTAL_FRAMES_PER_VIDEO - 1;
+            drawVideo1(TOTAL_FRAMES_PER_VIDEO - 1);
+            frameIndex2Ref.current = 0;
+            drawVideo2(0);
           }
           // ZONE 3: 2nd Video (2nd entry video combine with 1st start.mp4) - Progress 0.46 -> 0.84
-          // Guaranteed to play every frame from 0 up to frame 239 (the cockpit interior last frame)!
           else if (progress <= 0.84) {
             if (c1) c1.style.opacity = "0";
             if (c2) c2.style.opacity = "1";
 
             const p2 = (progress - 0.46) / (0.84 - 0.46);
-            const f2 = Math.min(
+            const floatFrame2 = Math.min(
               TOTAL_FRAMES_PER_VIDEO - 1,
-              Math.floor(p2 * TOTAL_FRAMES_PER_VIDEO)
+              Math.max(0, p2 * (TOTAL_FRAMES_PER_VIDEO - 1))
             );
-            if (f2 !== frameIndex2Ref.current) {
-              frameIndex2Ref.current = f2;
-              drawVideo2(f2);
-            }
+            frameIndex2Ref.current = floatFrame2;
+            drawVideo2(floatFrame2);
           }
           // ZONE 4: Hold Last Frame (frame 239) & Smooth Line Transition - Progress 0.84 -> 1.00
-          // Video 2 is held solidly on its completed final frame so user sees the complete cockpit reveal
           else {
             if (c1) c1.style.opacity = "0";
             if (c2) c2.style.opacity = "1";
 
-            if (frameIndex2Ref.current !== TOTAL_FRAMES_PER_VIDEO - 1) {
-              frameIndex2Ref.current = TOTAL_FRAMES_PER_VIDEO - 1;
-              drawVideo2(TOTAL_FRAMES_PER_VIDEO - 1);
-            }
+            frameIndex2Ref.current = TOTAL_FRAMES_PER_VIDEO - 1;
+            drawVideo2(TOTAL_FRAMES_PER_VIDEO - 1);
           }
         },
       });

@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import Image from "next/image";
-import { gsap, ScrollTrigger, drawImageToCanvas } from "@/lib/animations";
+import { gsap, ScrollTrigger, drawBlendedFramesToCanvas } from "@/lib/animations";
 
 const TOTAL_PARTS_FRAMES = 240;
 
@@ -76,20 +76,31 @@ export const PartsSection: React.FC = () => {
     return () => window.removeEventListener("resize", updateDimensions);
   }, []);
 
-  // Direct high-performance Canvas renderer (Lag-Free 60FPS)
-  const drawFrame = (index: number) => {
+  // Continuous Sub-Frame Blended Canvas renderer (Zero Visible Cuts, 60FPS)
+  const drawFrame = (floatIndex: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
     const { width, height, dpr } = dimensionsRef.current;
-    const clampedIndex = Math.min(TOTAL_PARTS_FRAMES - 1, Math.max(0, index));
+    const clamped = Math.max(0, Math.min(TOTAL_PARTS_FRAMES - 1, floatIndex));
+    const idxA = Math.floor(clamped);
+    const idxB = Math.min(TOTAL_PARTS_FRAMES - 1, idxA + 1);
+    const blend = clamped - idxA;
 
     ctx.save();
     ctx.scale(dpr, dpr);
-    if (framesRef.current[clampedIndex]) {
-      drawImageToCanvas(ctx, framesRef.current[clampedIndex], width, height, "cover");
+    if (framesRef.current[idxA]) {
+      drawBlendedFramesToCanvas(
+        ctx,
+        framesRef.current[idxA],
+        framesRef.current[idxB],
+        blend,
+        width,
+        height,
+        "cover"
+      );
     }
     ctx.restore();
   };
@@ -120,21 +131,19 @@ export const PartsSection: React.FC = () => {
         pinSpacing: true,
         anticipatePin: 0,
         refreshPriority: 2, // Pinned between Hero (3) and Colorways (1)
-        scrub: 0.15, // Responsive, buttery-smooth scrubbing with zero lag
+        scrub: 0.8, // Luxurious, buttery-smooth momentum scrub
         onUpdate: (self) => {
           const progress = Math.min(1, Math.max(0, self.progress));
 
-          // Map slowly through all 240 frames
+          // Continuous sub-frame mapping through all 240 frames
           const videoProgress = Math.min(1, progress / PLAY_ZONE);
-          const f = Math.min(
+          const floatFrame = Math.min(
             TOTAL_PARTS_FRAMES - 1,
-            Math.floor(videoProgress * TOTAL_PARTS_FRAMES)
+            Math.max(0, videoProgress * (TOTAL_PARTS_FRAMES - 1))
           );
 
-          if (f !== frameIndexRef.current) {
-            frameIndexRef.current = f;
-            drawFrame(f);
-          }
+          frameIndexRef.current = floatFrame;
+          drawFrame(floatFrame);
         },
       });
 
