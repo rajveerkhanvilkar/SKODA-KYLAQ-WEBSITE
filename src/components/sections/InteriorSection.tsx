@@ -60,9 +60,10 @@ export const InteriorSection: React.FC = () => {
           className="relative aspect-[21/9] max-w-7xl mx-auto rounded-3xl overflow-hidden border border-white/15 bg-black mb-12 shadow-2xl group"
         >
           <Image
-            src="/images/features/teal_interior.png"
+            src="/images/features/teal_interior.webp"
             alt="Škoda Kylaq Futuristic Teal Ambient Cockpit"
             fill
+            sizes="(max-width: 1280px) 100vw, 1280px"
             className="object-cover object-center group-hover:scale-105 transition-transform duration-700"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/40 pointer-events-none" />

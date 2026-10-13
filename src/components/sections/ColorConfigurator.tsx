@@ -244,6 +244,7 @@ export const ColorConfigurator: React.FC = () => {
             if (f1 !== lastDrawn1Ref.current) {
               lastDrawn1Ref.current = f1;
               drawVideo1(f1);
+              seq1Ref.current?.prefetchWindow(f1, 20);
             }
           }
           // Video 2: Silver & Tornado Red Car Pass (Progress 0.50 -> 1.00)
@@ -259,6 +260,7 @@ export const ColorConfigurator: React.FC = () => {
             if (f2 !== lastDrawn2Ref.current) {
               lastDrawn2Ref.current = f2;
               drawVideo2(f2);
+              seq2Ref.current?.prefetchWindow(f2, 20);
             }
           }
         },

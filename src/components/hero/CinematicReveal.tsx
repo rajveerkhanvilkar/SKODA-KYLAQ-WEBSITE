@@ -7,7 +7,11 @@ import { createProgressiveSequence, ProgressiveSequenceController } from "@/lib/
 
 const TOTAL_FRAMES_PER_VIDEO = 240;
 
-export const CinematicReveal: React.FC = () => {
+interface CinematicRevealProps {
+  onInitialReady?: () => void;
+}
+
+export const CinematicReveal: React.FC<CinematicRevealProps> = ({ onInitialReady }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const stickyRef = useRef<HTMLDivElement>(null);
 
@@ -20,6 +24,7 @@ export const CinematicReveal: React.FC = () => {
   const seq1Ref = useRef<ProgressiveSequenceController | null>(null);
   const seq2Ref = useRef<ProgressiveSequenceController | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const hasNotifiedReadyRef = useRef<boolean>(false);
 
   // Cached viewport dimensions for 60FPS canvas draw without layout thrashing
   const dimensionsRef = useRef<{ width: number; height: number; dpr: number }>({
@@ -28,14 +33,25 @@ export const CinematicReveal: React.FC = () => {
     dpr: 1,
   });
 
-  // Progressive Priority Loading for Video 1 (frames_intro) and Video 2 (frames)
+  // Progressive Priority Loading: Video 1 (frames_intro) loads immediately
   useEffect(() => {
     let isMounted = true;
 
     const seq1 = createProgressiveSequence({
       folder: "/frames_intro",
       totalFrames: TOTAL_FRAMES_PER_VIDEO,
-      priorityCount: 24,
+      priorityCount: 12,
+      onFirstFrame: () => {
+        if (!isMounted) return;
+        // Instant Poster Display: Draw frame 0 immediately
+        drawVideo1(0);
+        if (canvas1Ref.current) canvas1Ref.current.style.opacity = "1";
+        if (canvas2Ref.current) canvas2Ref.current.style.opacity = "0";
+        if (!hasNotifiedReadyRef.current) {
+          hasNotifiedReadyRef.current = true;
+          onInitialReady?.();
+        }
+      },
       onReady: () => {
         if (isMounted) {
           setIsLoaded(true);
@@ -43,19 +59,24 @@ export const CinematicReveal: React.FC = () => {
       },
     });
 
-    const seq2 = createProgressiveSequence({
-      folder: "/frames",
-      totalFrames: TOTAL_FRAMES_PER_VIDEO,
-      priorityCount: 16,
-    });
-
     seq1Ref.current = seq1;
-    seq2Ref.current = seq2;
+
+    // Start loading Video 2 (frames) early so it is ready when user reaches 0.42
+    const startSeq2Timer = setTimeout(() => {
+      if (!isMounted || seq2Ref.current) return;
+      const seq2 = createProgressiveSequence({
+        folder: "/frames",
+        totalFrames: TOTAL_FRAMES_PER_VIDEO,
+        priorityCount: 10,
+      });
+      seq2Ref.current = seq2;
+    }, 600);
 
     return () => {
       isMounted = false;
+      clearTimeout(startSeq2Timer);
       seq1.cancel();
-      seq2.cancel();
+      if (seq2Ref.current) seq2Ref.current.cancel();
     };
   }, []);
 
@@ -162,6 +183,7 @@ export const CinematicReveal: React.FC = () => {
             if (f1 !== lastDrawn1Ref.current) {
               lastDrawn1Ref.current = f1;
               drawVideo1(f1);
+              seq1Ref.current?.prefetchWindow(f1, 20);
             }
           }
           // ZONE 2: Seamless Crossfade between 1st Video and 2nd Video - Progress 0.42 -> 0.46
@@ -177,6 +199,7 @@ export const CinematicReveal: React.FC = () => {
             if (lastDrawn2Ref.current !== 0) {
               lastDrawn2Ref.current = 0;
               drawVideo2(0);
+              seq2Ref.current?.prefetchWindow(0, 20);
             }
           }
           // ZONE 3: 2nd Video (2nd entry video combine with 1st start.mp4) - Progress 0.46 -> 0.84
@@ -192,6 +215,7 @@ export const CinematicReveal: React.FC = () => {
             if (f2 !== lastDrawn2Ref.current) {
               lastDrawn2Ref.current = f2;
               drawVideo2(f2);
+              seq2Ref.current?.prefetchWindow(f2, 20);
             }
           }
           // ZONE 4: Hold Last Frame (frame 239) & Smooth Line Transition - Progress 0.84 -> 1.00

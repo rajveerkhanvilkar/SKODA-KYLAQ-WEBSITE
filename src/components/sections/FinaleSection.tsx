@@ -56,9 +56,10 @@ export const FinaleSection: React.FC<FinaleSectionProps> = ({ onOpenTestDrive })
           className="relative aspect-[16/9] max-w-4xl mx-auto rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-black mb-12"
         >
           <Image
-            src="/images/features/cinematic_studio.png"
+            src="/images/features/cinematic_studio.webp"
             alt="Škoda Kylaq Finale Studio Shot"
             fill
+            sizes="(max-width: 1024px) 100vw, 896px"
             className="object-cover object-center"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-70" />

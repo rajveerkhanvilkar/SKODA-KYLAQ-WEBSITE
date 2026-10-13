@@ -78,7 +78,7 @@ export const KYLAQ_DATA = {
       title: "Signature 3D Front Grille",
       subtitle: "MODERN SOLID FACE",
       description: "High-gloss black vertical ribs paired with subtle chrome frame accents deliver an unmistakable road presence.",
-      image: "/images/features/front_fascia.png",
+      image: "/images/features/front_fascia.webp",
       hotspot: { x: 48, y: 52 }
     },
     {
@@ -86,7 +86,7 @@ export const KYLAQ_DATA = {
       title: "Split LED Matrix Headlamps",
       subtitle: "LIGHTING SIGNATURE",
       description: "Crisp crystal-cut daytime running lamps sitting atop high-intensity LED projection units engineered for peak night visibility.",
-      image: "/images/features/headlight_detail.png",
+      image: "/images/features/headlight_detail.webp",
       hotspot: { x: 38, y: 44 }
     },
     {
@@ -94,7 +94,7 @@ export const KYLAQ_DATA = {
       title: "Sculpted Power Bonnet",
       subtitle: "AERODYNAMIC ARCHITECTURE",
       description: "Dual power domes channel airflow over the windshield while asserting a muscular, confident silhouette.",
-      image: "/images/features/cinematic_studio.png",
+      image: "/images/features/cinematic_studio.webp",
       hotspot: { x: 55, y: 35 }
     },
     {
@@ -102,7 +102,7 @@ export const KYLAQ_DATA = {
       title: "17-Inch Alloy Stance",
       subtitle: "DYNAMIC FOUNDATION",
       description: "Precision-machined dual-tone alloy wheels wrapped in wide-profile rubber, backed by 189 mm ground clearance.",
-      image: "/images/features/wheel_detail.png",
+      image: "/images/features/wheel_detail.webp",
       hotspot: { x: 28, y: 72 }
     }
   ] as ExteriorFeature[],
@@ -115,21 +115,21 @@ export const KYLAQ_DATA = {
         title: "10.1-Inch Touchscreen Infotainment",
         description: "Seamless wireless Apple CarPlay and Android Auto integration with high-contrast glass display.",
         badge: "TECHNOLOGY",
-        image: "/images/features/teal_interior.png"
+        image: "/images/features/teal_interior.webp"
       },
       {
         id: "cockpit",
         title: "Virtual Cockpit Digital Display",
         description: "8-inch customizable instrument cluster offering crisp telemetry, navigation cues, and trip diagnostics.",
         badge: "COCKPIT",
-        image: "/images/features/teal_interior.png"
+        image: "/images/features/teal_interior.webp"
       },
       {
         id: "comfort",
         title: "Ventilated Leatherette Seats",
         description: "Front perforated seats with multi-stage cooling to maintain optimal comfort in all climate conditions.",
         badge: "COMFORT",
-        image: "/images/features/teal_interior.png"
+        image: "/images/features/teal_interior.webp"
       }
     ] as InteriorFeature[]
   },
@@ -141,7 +141,7 @@ export const KYLAQ_DATA = {
       tagline: "PRECISION CUT GLASS",
       description: "Inspired by Bohemian glassmaking heritage, the Kylaq features intricate internal facets inside the DRLs that disperse light with brilliant crystalline warmth.",
       specs: ["Full LED Headlamps", "Signature C-Shape Tail Lamps", "Auto Headlamp Function"],
-      image: "/images/features/headlight_detail.png"
+      image: "/images/features/headlight_detail.webp"
     },
     {
       id: "f2",
@@ -150,7 +150,7 @@ export const KYLAQ_DATA = {
       tagline: "ALWAYS IN SYNC",
       description: "Stay connected through MyŠkoda Connect featuring remote vehicle diagnostics, geo-fencing, live location tracking, and smart device alerts.",
       specs: ["Wireless Charging Pad", "6-Speaker Audio System", "Dual USB-C Ports"],
-      image: "/images/features/teal_interior.png"
+      image: "/images/features/teal_interior.webp"
     },
     {
       id: "f3",
@@ -159,7 +159,7 @@ export const KYLAQ_DATA = {
       tagline: "CLASS-LEADING ERGONOMICS",
       description: "Generous legroom, 446L luggage capacity expandable via 60:40 split rear seats, and electric sunroof for an open-air experience.",
       specs: ["Electric Sunroof", "Automated Climatronic AC", "Rear AC Vents"],
-      image: "/images/features/teal_studio.png"
+      image: "/images/features/teal_studio.webp"
     },
     {
       id: "f4",
@@ -168,7 +168,7 @@ export const KYLAQ_DATA = {
       tagline: "UNCOMPROMISING PROTECTION",
       description: "Built on a high-rigidity laser-welded body structure reinforced with hot-formed ultra-high-strength steel for maximum occupant safety.",
       specs: ["6 Airbags Standard", "Electronic Stability Control (ESC)", "Multi-Collision Braking"],
-      image: "/images/features/front_fascia.png"
+      image: "/images/features/front_fascia.webp"
     }
   ] as InteractiveFeature[],
   colorOptions: [
@@ -213,42 +213,42 @@ export const KYLAQ_DATA = {
       id: "g1",
       title: "Cinematic Dark Reveal",
       category: "studio",
-      src: "/images/features/cinematic_studio.png",
+      src: "/images/features/cinematic_studio.webp",
       caption: "Led Daytime Running Lamps slicing through dark obsidian shadow."
     },
     {
       id: "g2",
       title: "Front Grille Profile",
       category: "exterior",
-      src: "/images/features/front_fascia.png",
+      src: "/images/features/front_fascia.webp",
       caption: "Signature 3D vertical radiator grille with metallic Škoda badge."
     },
     {
       id: "g3",
       title: "Split Matrix Lamps",
       category: "details",
-      src: "/images/features/headlight_detail.png",
+      src: "/images/features/headlight_detail.webp",
       caption: "High-beam projection units paired with crystalline upper DRL elements."
     },
     {
       id: "g4",
       title: "Teal Cockpit Sanctuary",
       category: "details",
-      src: "/images/features/teal_interior.png",
+      src: "/images/features/teal_interior.webp",
       caption: "Futuristic ambient lighting and digital driver display."
     },
     {
       id: "g5",
       title: "Front Wheel & Stance",
       category: "exterior",
-      src: "/images/features/wheel_detail.png",
+      src: "/images/features/wheel_detail.webp",
       caption: "Dual-tone alloy wheels grounded with 189 mm ground clearance."
     },
     {
       id: "g6",
       title: "Teal Mood Profile",
       category: "exterior",
-      src: "/images/features/teal_studio.png",
+      src: "/images/features/teal_studio.webp",
       caption: "Clean roof line accented by functional roof rails and privacy glass."
     }
   ] as GalleryItem[],

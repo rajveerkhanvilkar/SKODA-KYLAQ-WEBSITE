@@ -30,35 +30,39 @@ export function SmoothScrollProvider({ children }: { children: React.ReactNode }
     gsap.ticker.add(updateGSAP);
     gsap.ticker.lagSmoothing(0);
 
-    const refreshScroll = () => {
-      lenis.resize();
-      ScrollTrigger.refresh();
+    let refreshTimer: NodeJS.Timeout | null = null;
+    const debouncedRefresh = () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        lenis.resize();
+        ScrollTrigger.refresh();
+      }, 120);
     };
 
     // ResizeObserver on document.body ensures Lenis max scroll limit is NEVER stale when section images load
     const resizeObserver = new ResizeObserver(() => {
-      refreshScroll();
+      debouncedRefresh();
     });
 
     if (document.body) {
       resizeObserver.observe(document.body);
     }
 
-    window.addEventListener("resize", refreshScroll);
-    window.addEventListener("load", refreshScroll);
+    window.addEventListener("resize", debouncedRefresh);
+    window.addEventListener("load", debouncedRefresh);
 
-    const timer1 = setTimeout(refreshScroll, 300);
-    const timer2 = setTimeout(refreshScroll, 1000);
-    const timer3 = setTimeout(refreshScroll, 2500);
+    const timer1 = setTimeout(() => {
+      lenis.resize();
+      ScrollTrigger.refresh();
+    }, 400);
 
     return () => {
       delete (window as any).lenis;
       resizeObserver.disconnect();
+      if (refreshTimer) clearTimeout(refreshTimer);
       clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-      window.removeEventListener("resize", refreshScroll);
-      window.removeEventListener("load", refreshScroll);
+      window.removeEventListener("resize", debouncedRefresh);
+      window.removeEventListener("load", debouncedRefresh);
       gsap.ticker.remove(updateGSAP);
       lenis.destroy();
     };

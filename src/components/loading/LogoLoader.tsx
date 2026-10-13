@@ -31,6 +31,7 @@ export const LogoLoader: React.FC<LogoLoaderProps> = ({ isReady }) => {
               alt="Škoda Official Logo"
               fill
               priority
+              sizes="(max-width: 640px) 144px, 192px"
               className="object-contain"
             />
           </motion.div>

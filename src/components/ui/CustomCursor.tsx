@@ -8,12 +8,44 @@ export const CustomCursor: React.FC = () => {
   const iconRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Only activate custom cursor on desktop devices with fine pointer (mouse/trackpad)
+    if (typeof window === "undefined" || !window.matchMedia("(pointer: fine)").matches) {
+      return;
+    }
+
     let mouseX = -100;
     let mouseY = -100;
     let currentX = -100;
     let currentY = -100;
     let isVisible = false;
-    let rafId: number;
+    let isRunning = false;
+    let rafId: number | null = null;
+
+    const startLoop = () => {
+      if (!isRunning) {
+        isRunning = true;
+        rafId = requestAnimationFrame(updatePosition);
+      }
+    };
+
+    const updatePosition = () => {
+      const dx = mouseX - currentX;
+      const dy = mouseY - currentY;
+      currentX += dx * 0.35;
+      currentY += dy * 0.35;
+
+      if (cursorRef.current) {
+        cursorRef.current.style.transform = `translate3d(${currentX - 24}px, ${currentY - 24}px, 0)`;
+      }
+
+      // If settled close enough, pause RAF loop to conserve CPU/battery
+      if (Math.abs(dx) < 0.15 && Math.abs(dy) < 0.15) {
+        isRunning = false;
+        rafId = null;
+      } else {
+        rafId = requestAnimationFrame(updatePosition);
+      }
+    };
 
     const onMouseMove = (e: MouseEvent) => {
       mouseX = e.clientX;
@@ -23,6 +55,8 @@ export const CustomCursor: React.FC = () => {
         isVisible = true;
         if (cursorRef.current) cursorRef.current.style.opacity = "1";
       }
+
+      startLoop();
     };
 
     const onMouseLeave = () => {
@@ -33,17 +67,7 @@ export const CustomCursor: React.FC = () => {
     const onMouseEnter = () => {
       isVisible = true;
       if (cursorRef.current) cursorRef.current.style.opacity = "1";
-    };
-
-    const updatePosition = () => {
-      currentX += (mouseX - currentX) * 0.35;
-      currentY += (mouseY - currentY) * 0.35;
-
-      if (cursorRef.current) {
-        cursorRef.current.style.transform = `translate3d(${currentX - 24}px, ${currentY - 24}px, 0)`;
-      }
-
-      rafId = requestAnimationFrame(updatePosition);
+      startLoop();
     };
 
     const handleHoverStart = (e: MouseEvent) => {
@@ -74,15 +98,13 @@ export const CustomCursor: React.FC = () => {
     document.addEventListener("mouseover", handleHoverStart, { passive: true });
     document.addEventListener("mouseout", handleHoverEnd, { passive: true });
 
-    rafId = requestAnimationFrame(updatePosition);
-
     return () => {
       window.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseleave", onMouseLeave);
       document.removeEventListener("mouseenter", onMouseEnter);
       document.removeEventListener("mouseover", handleHoverStart);
       document.removeEventListener("mouseout", handleHoverEnd);
-      cancelAnimationFrame(rafId);
+      if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, []);
 

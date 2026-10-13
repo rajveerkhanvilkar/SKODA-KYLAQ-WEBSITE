@@ -114,7 +114,7 @@ export const FeatureExplorer: React.FC = () => {
                   src={currentFeature.image}
                   alt={currentFeature.title}
                   fill
-                  priority
+                  sizes="(max-width: 1024px) 100vw, 50vw"
                   className="object-cover object-center"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#050706] via-transparent to-transparent opacity-60" />

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import confetti from "canvas-confetti";
 import { KYLAQ_DATA } from "@/lib/vehicle-data";
 import { Calendar, MapPin, User, Mail, Phone, CheckCircle2, Loader2 } from "lucide-react";
 
@@ -69,27 +68,37 @@ export const TestDriveSection: React.FC = () => {
 
       const data = await res.json();
 
+      const triggerConfetti = async () => {
+        try {
+          const confettiModule = (await import("canvas-confetti")).default;
+          confettiModule({
+            particleCount: 90,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ["#00A878", "#C4D600", "#F3F0E8"],
+          });
+        } catch (_) {}
+      };
+
       if (data.success) {
         setBookingRef(data.bookingReference || `KYLAQ-TD-${Math.floor(100000 + Math.random() * 900000)}`);
         setSubmitted(true);
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ["#00A878", "#C4D600", "#F3F0E8"],
-        });
+        triggerConfetti();
       } else {
         alert(data.message || "Failed to schedule test drive. Please try again.");
       }
     } catch (err) {
       setBookingRef(`KYLAQ-TD-${Math.floor(100000 + Math.random() * 900000)}`);
       setSubmitted(true);
-      confetti({
-        particleCount: 90,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ["#00A878", "#C4D600", "#F3F0E8"],
-      });
+      try {
+        const confettiModule = (await import("canvas-confetti")).default;
+        confettiModule({
+          particleCount: 90,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ["#00A878", "#C4D600", "#F3F0E8"],
+        });
+      } catch (_) {}
     } finally {
       setIsSubmitting(false);
     }

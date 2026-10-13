@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import dynamic from "next/dynamic";
 import { Navbar } from "@/components/navigation/Navbar";
 import { LogoLoader } from "@/components/loading/LogoLoader";
 import { CinematicReveal } from "@/components/hero/CinematicReveal";
@@ -11,20 +12,49 @@ import { InteriorSection } from "@/components/sections/InteriorSection";
 import { ColorConfigurator } from "@/components/sections/ColorConfigurator";
 import { FeatureExplorer } from "@/components/sections/FeatureExplorer";
 import { GallerySection } from "@/components/sections/GallerySection";
-import { SpecificationsSection } from "@/components/sections/SpecificationsSection";
-import { TestDriveSection } from "@/components/sections/TestDriveSection";
-import { FinaleSection } from "@/components/sections/FinaleSection";
-import { Footer } from "@/components/footer/Footer";
 import { AudioAmbienceEngine } from "@/components/ui/AudioToggle";
 import { SmoothScrollProvider } from "@/components/ui/SmoothScroll";
 import { CustomCursor } from "@/components/ui/CustomCursor";
 
+// Dynamically split below-the-fold distant sections to lighten initial bundle
+const SpecificationsSection = dynamic(
+  () => import("@/components/sections/SpecificationsSection").then((m) => m.SpecificationsSection),
+  { ssr: true }
+);
+const TestDriveSection = dynamic(
+  () => import("@/components/sections/TestDriveSection").then((m) => m.TestDriveSection),
+  { ssr: true }
+);
+const FinaleSection = dynamic(
+  () => import("@/components/sections/FinaleSection").then((m) => m.FinaleSection),
+  { ssr: true }
+);
+const Footer = dynamic(
+  () => import("@/components/footer/Footer").then((m) => m.Footer),
+  { ssr: true }
+);
+
 export default function HomePage() {
   const [isMuted, setIsMuted] = useState(true);
   const [isLoaded, setIsLoaded] = useState(false);
+  const unlockedRef = useRef(false);
+
+  const unlockScroll = useCallback(() => {
+    if (unlockedRef.current) return;
+    unlockedRef.current = true;
+
+    if (typeof window !== "undefined") {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+      if ((window as any).lenis) {
+        (window as any).lenis.start();
+      }
+    }
+    setIsLoaded(true);
+  }, []);
 
   useEffect(() => {
-    // 1. Immediately lock scroll at top of page during 2-second splash screen
+    // 1. Temporarily hold scroll until initial hero frame 0 is rendered (<500ms target)
     if (typeof window !== "undefined") {
       window.scrollTo(0, 0);
       document.body.style.overflow = "hidden";
@@ -32,21 +62,13 @@ export default function HomePage() {
     }
 
     const preventScroll = (e: Event) => {
-      e.preventDefault();
+      if (!unlockedRef.current) {
+        e.preventDefault();
+      }
     };
 
     const preventKeys = (e: KeyboardEvent) => {
-      if (
-        [
-          "Space",
-          "ArrowUp",
-          "ArrowDown",
-          "PageUp",
-          "PageDown",
-          "Home",
-          "End",
-        ].includes(e.code)
-      ) {
+      if (!unlockedRef.current && ["Space", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].includes(e.code)) {
         e.preventDefault();
       }
     };
@@ -55,48 +77,27 @@ export default function HomePage() {
     window.addEventListener("touchmove", preventScroll, { passive: false });
     window.addEventListener("keydown", preventKeys);
 
-    // Stop Lenis if initialized
-    const checkLenis = setInterval(() => {
-      if ((window as any).lenis) {
-        (window as any).lenis.stop();
-        (window as any).lenis.scrollTo(0, { immediate: true });
-      }
-    }, 50);
-
-    // 2. Exactly 2 seconds timer before unlocking scroll and revealing site
-    const timer = setTimeout(() => {
-      clearInterval(checkLenis);
-      window.removeEventListener("wheel", preventScroll);
-      window.removeEventListener("touchmove", preventScroll);
-      window.removeEventListener("keydown", preventKeys);
-
-      if (typeof window !== "undefined") {
-        document.body.style.overflow = "";
-        document.documentElement.style.overflow = "";
-        if ((window as any).lenis) {
-          (window as any).lenis.start();
-        }
-      }
-
-      setIsLoaded(true);
-    }, 2000);
+    // Bounded fallback: Never hold visitor more than 800ms even on slow networks
+    const fallbackTimer = setTimeout(() => {
+      unlockScroll();
+    }, 800);
 
     return () => {
-      clearTimeout(timer);
-      clearInterval(checkLenis);
+      clearTimeout(fallbackTimer);
       window.removeEventListener("wheel", preventScroll);
       window.removeEventListener("touchmove", preventScroll);
       window.removeEventListener("keydown", preventKeys);
-
       if (typeof window !== "undefined") {
         document.body.style.overflow = "";
         document.documentElement.style.overflow = "";
-        if ((window as any).lenis) {
-          (window as any).lenis.start();
-        }
       }
     };
-  }, []);
+  }, [unlockScroll]);
+
+  const handleHeroReady = useCallback(() => {
+    // Hero frame 0 is drawn and ready: unlock immediately for instant perceived experience
+    unlockScroll();
+  }, [unlockScroll]);
 
   const handleToggleSound = () => {
     setIsMuted((prev) => !prev);
@@ -112,10 +113,10 @@ export default function HomePage() {
   return (
     <SmoothScrollProvider>
       <main className="min-h-screen bg-black text-[#F3F0E8] relative selection:bg-[#00A878] selection:text-black">
-        {/* Custom Škoda Chrome Emblem Cursor */}
+        {/* Custom Škoda Chrome Emblem Cursor (Desktop Only) */}
         <CustomCursor />
 
-        {/* Phase 2: Brand Logo Welcome Screen (2 Seconds, No Loading Bar) */}
+        {/* Phase 2: Brand Logo Welcome Screen (Fades smoothly as soon as hero frame 0 is ready) */}
         <LogoLoader isReady={isLoaded} />
 
         {/* Audio Ambience Engine */}
@@ -129,7 +130,7 @@ export default function HomePage() {
         />
 
         {/* Section 1: Hero Dual Scroll Video Reveal (frames_intro & frames) */}
-        <CinematicReveal />
+        <CinematicReveal onInitialReady={handleHeroReady} />
 
         {/* Section 2: Exterior Form & Design Reveal */}
         <DesignSection />
@@ -142,7 +143,7 @@ export default function HomePage() {
         {/* Section 3: Interior Sanctuary & Comfort */}
         <InteriorSection />
 
-        {/* Section 4: Colourway Scroll-Animated Video Showcase (color_yellow_grey.mp4 & color_silver_red.mp4) */}
+        {/* Section 4: Colourway Scroll-Animated Video Showcase */}
         <ColorConfigurator />
 
         {/* Section 5: Interactive Category Feature Explorer */}

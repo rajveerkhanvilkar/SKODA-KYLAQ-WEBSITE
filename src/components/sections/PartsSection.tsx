@@ -147,6 +147,7 @@ export const PartsSection: React.FC = () => {
           if (f !== lastDrawnFrameRef.current) {
             lastDrawnFrameRef.current = f;
             drawFrame(f);
+            seqRef.current?.prefetchWindow(f, 20);
           }
         },
       });

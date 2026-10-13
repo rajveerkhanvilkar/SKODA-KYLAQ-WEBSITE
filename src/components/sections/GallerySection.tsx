@@ -8,49 +8,49 @@ import { ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
 const GALLERY_PHOTOS = [
   {
     id: 1,
-    src: "/images/new_gallery/kylaq_shot_7.png",
+    src: "/images/new_gallery/kylaq_shot_7.webp",
     title: "FULL CINEMATIC STUDIO REVEAL",
     category: "EXTERIOR STANCE",
     desc: "360-degree perspective of the all-new Škoda Kylaq in studio lighting.",
   },
   {
     id: 2,
-    src: "/images/new_gallery/kylaq_shot_2.png",
+    src: "/images/new_gallery/kylaq_shot_2.webp",
     title: "MODERN SOLID FRONT FACIA",
     category: "FRONT GRILLE",
     desc: "Distinctive vertical 3D grille detailing paired with muscular bonnet contours.",
   },
   {
     id: 3,
-    src: "/images/new_gallery/kylaq_shot_6.png",
+    src: "/images/new_gallery/kylaq_shot_6.webp",
     title: "HIGH-INTENSITY LED DAYLIGHT SIGNATURE",
     category: "LIGHTING",
     desc: "Precision-engineered split LED headlight architecture.",
   },
   {
     id: 4,
-    src: "/images/new_gallery/kylaq_shot_3.png",
+    src: "/images/new_gallery/kylaq_shot_3.webp",
     title: "PRECISION-CUT ALLOY WHEELS",
     category: "WHEEL ARCH",
     desc: "Aerodynamic alloy design built for high ground clearance stability.",
   },
   {
     id: 5,
-    src: "/images/new_gallery/kylaq_shot_4.png",
+    src: "/images/new_gallery/kylaq_shot_4.webp",
     title: "TEAL AMBIENT VIRTUAL COCKPIT",
     category: "INTERIOR",
     desc: "Driver-centric digital cockpit with ambient teal lighting.",
   },
   {
     id: 6,
-    src: "/images/new_gallery/kylaq_shot_5.png",
+    src: "/images/new_gallery/kylaq_shot_5.webp",
     title: "TEAL MOOD STUDIO STANCE",
     category: "EXTERIOR PROFILE",
     desc: "Sculpted shoulder lines and dynamic roof contours.",
   },
   {
     id: 7,
-    src: "/images/new_gallery/kylaq_shot_1.png",
+    src: "/images/new_gallery/kylaq_shot_1.webp",
     title: "OLIVE GOLD STUDIO EDITION",
     category: "HERO COLORWAY",
     desc: "Signature Kylaq olive gold exterior finish in dark mood lighting.",
@@ -123,7 +123,7 @@ export const GallerySection: React.FC = () => {
                 src={currentPhoto.src}
                 alt={currentPhoto.title}
                 fill
-                priority
+                sizes="(max-width: 1280px) 100vw, 1152px"
                 className="object-cover object-center"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/30 pointer-events-none" />
@@ -166,6 +166,7 @@ export const GallerySection: React.FC = () => {
                 src={photo.src}
                 alt={photo.title}
                 fill
+                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 15vw"
                 className="object-cover"
               />
             </button>

@@ -8,22 +8,22 @@ export const DesignSection: React.FC = () => {
     {
       title: "DISTINCTIVE GRILLE",
       subtitle: "Vertical 3D ribbed front fascia",
-      image: "/images/features/front_fascia.png",
+      image: "/images/features/front_fascia.webp",
     },
     {
       title: "LED LIGHT SIGNATURE",
       subtitle: "Sharp split LED daylight technology",
-      image: "/images/features/headlight_detail.png",
+      image: "/images/features/headlight_detail.webp",
     },
     {
       title: "ALLOY WHEELS",
       subtitle: "Precision-cut aerodynamic alloys",
-      image: "/images/features/wheel_detail.png",
+      image: "/images/features/wheel_detail.webp",
     },
     {
       title: "SCULPTED SILHOUETTE",
       subtitle: "Dynamic shoulder lines & high stance",
-      image: "/images/features/teal_studio.png",
+      image: "/images/features/teal_studio.webp",
     },
   ];
 
@@ -55,9 +55,10 @@ export const DesignSection: React.FC = () => {
         {/* Hero Cinematic Studio Image */}
         <div className="relative aspect-[21/9] max-w-7xl mx-auto rounded-3xl overflow-hidden border border-white/15 bg-black mb-12 shadow-2xl group">
           <Image
-            src="/images/features/cinematic_studio.png"
+            src="/images/features/cinematic_studio.webp"
             alt="Škoda Kylaq Exterior Studio Reveal"
             fill
+            sizes="(max-width: 1280px) 100vw, 1280px"
             className="object-cover object-center group-hover:scale-105 transition-transform duration-700"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/30 pointer-events-none" />
@@ -88,6 +89,7 @@ export const DesignSection: React.FC = () => {
                 src={item.image}
                 alt={item.title}
                 fill
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                 className="object-cover group-hover:scale-110 transition-transform duration-500"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent opacity-90" />

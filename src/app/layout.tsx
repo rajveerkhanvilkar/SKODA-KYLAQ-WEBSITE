@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     siteName: "Škoda Kylaq Experience",
     images: [
       {
-        url: "/images/features/cinematic_studio.png",
+        url: "/images/features/cinematic_studio.webp",
         width: 1200,
         height: 630,
         alt: "Škoda Kylaq Studio Reveal"
@@ -54,7 +54,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Škoda Kylaq — Modern Solid Compact SUV",
     description: "Explore the scroll-driven automotive experience of Škoda Kylaq.",
-    images: ["/images/features/cinematic_studio.png"]
+    images: ["/images/features/cinematic_studio.webp"]
   }
 };
 

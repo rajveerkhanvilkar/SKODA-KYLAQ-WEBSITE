@@ -51,7 +51,7 @@ export const ExteriorSection: React.FC = () => {
                   src={activeFeature.image}
                   alt={activeFeature.title}
                   fill
-                  priority
+                  sizes="(max-width: 1024px) 100vw, 66vw"
                   className="object-cover object-center"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#050706] via-transparent to-transparent opacity-60" />
