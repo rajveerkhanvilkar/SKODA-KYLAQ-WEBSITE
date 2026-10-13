@@ -1,56 +1,31 @@
 "use client";
 
-import { useEffect } from "react";
-import { ScrollTrigger } from "@/lib/animations";
+import React, { createContext, useContext } from "react";
+import Lenis from "lenis";
+import { useLenis } from "@/hooks/useLenis";
+
+const LenisContext = createContext<Lenis | null>(null);
+
+export const useLenisContext = () => useContext(LenisContext);
 
 /**
- * Apple-Style Direct Scroll Controller
- * Removes artificial inertia/momentum loops that cause frame sequences to "autoplay".
- * Maps mouse wheel and touch directly 1:1 to scroll progress.
+ * SmoothScrollProvider integrates Lenis smooth scrolling into the Next.js project.
+ * Uses the custom useLenis hook to synchronize with GSAP ScrollTrigger's ticker,
+ * ensuring cinematic premium scrolling and complete cleanup on unmount.
  */
 export function SmoothScrollProvider({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    // Provide safe lenis API mock so callers don't fail
-    (window as any).lenis = {
-      start: () => {},
-      stop: () => {},
-      resize: () => {
-        ScrollTrigger.refresh();
-      },
-    };
+  const lenis = useLenis({
+    duration: 1.2,
+    smoothWheel: true,
+    wheelMultiplier: 1.0,
+    touchMultiplier: 1.5,
+  });
 
-    const handleScroll = () => {
-      ScrollTrigger.update();
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-
-    let refreshTimer: NodeJS.Timeout | null = null;
-    const debouncedRefresh = () => {
-      if (refreshTimer) clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(() => {
-        ScrollTrigger.refresh();
-      }, 120);
-    };
-
-    const resizeObserver = new ResizeObserver(() => {
-      debouncedRefresh();
-    });
-
-    if (document.body) {
-      resizeObserver.observe(document.body);
-    }
-
-    window.addEventListener("resize", debouncedRefresh);
-
-    return () => {
-      delete (window as any).lenis;
-      resizeObserver.disconnect();
-      if (refreshTimer) clearTimeout(refreshTimer);
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", debouncedRefresh);
-    };
-  }, []);
-
-  return <>{children}</>;
+  return (
+    <LenisContext.Provider value={lenis}>
+      {children}
+    </LenisContext.Provider>
+  );
 }
+
+export { useLenis };
