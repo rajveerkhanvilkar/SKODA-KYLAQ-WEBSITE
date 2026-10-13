@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect, useState } from "react";
-import { gsap, ScrollTrigger, drawImageToCanvas, createRafRenderQueue } from "@/lib/animations";
+import { gsap, ScrollTrigger, drawImageToCanvas } from "@/lib/animations";
 
 import { createProgressiveSequence, ProgressiveSequenceController } from "@/lib/frameLoader";
 
@@ -58,17 +58,6 @@ export const CinematicReveal: React.FC<CinematicRevealProps> = ({ onInitialReady
     }
   };
 
-  // RAF queues for single-draw-per-screen-refresh performance
-  const rafQueue1Ref = useRef<ReturnType<typeof createRafRenderQueue<number>> | null>(null);
-  const rafQueue2Ref = useRef<ReturnType<typeof createRafRenderQueue<number>> | null>(null);
-
-  if (!rafQueue1Ref.current) {
-    rafQueue1Ref.current = createRafRenderQueue<number>((idx) => drawVideo1(idx));
-  }
-  if (!rafQueue2Ref.current) {
-    rafQueue2Ref.current = createRafRenderQueue<number>((idx) => drawVideo2(idx));
-  }
-
   // Progressive Priority Loading: Video 1 (frames_intro) loads immediately
   useEffect(() => {
     let isMounted = true;
@@ -97,7 +86,7 @@ export const CinematicReveal: React.FC<CinematicRevealProps> = ({ onInitialReady
 
     seq1Ref.current = seq1;
 
-    // Start loading Video 2 (frames) early so it is ready when user reaches 0.42
+    // Start loading Video 2 (frames) early so it is ready when user reaches 0.44
     const startSeq2Timer = setTimeout(() => {
       if (!isMounted || seq2Ref.current) return;
       const seq2 = createProgressiveSequence({
@@ -113,8 +102,6 @@ export const CinematicReveal: React.FC<CinematicRevealProps> = ({ onInitialReady
       clearTimeout(startSeq2Timer);
       seq1.cancel();
       if (seq2Ref.current) seq2Ref.current.cancel();
-      rafQueue1Ref.current?.cancel();
-      rafQueue2Ref.current?.cancel();
     };
   }, []);
 
@@ -174,68 +161,68 @@ export const CinematicReveal: React.FC<CinematicRevealProps> = ({ onInitialReady
         pinSpacing: true,
         anticipatePin: 0,
         refreshPriority: 3, // Highest priority: Hero pinned first
-        scrub: 0.6, // Calibrated 0.6s scrub for velvety-soft cinematic interpolation
+        scrub: true, // Apple-style direct 1:1 scroll scrub (no autoplay, no inertia lag)
         onUpdate: (self) => {
           const progress = Math.min(1, Math.max(0, self.progress));
           const c1 = canvas1Ref.current;
           const c2 = canvas2Ref.current;
 
-          // ZONE 1: 1st Video (1st car video starting.mp4) - Progress 0.00 -> 0.42
-          if (progress < 0.42) {
+          // ZONE 1: 1st Video (frames_intro) - Progress 0.00 -> 0.44
+          if (progress < 0.44) {
             if (c1 && c1.style.opacity !== "1") c1.style.opacity = "1";
             if (c2 && c2.style.opacity !== "0") c2.style.opacity = "0";
 
-            const p1 = progress / 0.42;
+            const p1 = progress / 0.44;
             const f1 = Math.min(
               TOTAL_FRAMES_PER_VIDEO - 1,
-              Math.max(0, Math.round(p1 * (TOTAL_FRAMES_PER_VIDEO - 1)))
+              Math.max(0, Math.floor(p1 * (TOTAL_FRAMES_PER_VIDEO - 1)))
             );
             if (f1 !== lastDrawn1Ref.current) {
               lastDrawn1Ref.current = f1;
-              rafQueue1Ref.current?.request(f1);
+              drawVideo1(f1);
               seq1Ref.current?.prefetchWindow(f1, 20);
             }
           }
-          // ZONE 2: Seamless Crossfade between 1st Video and 2nd Video - Progress 0.42 -> 0.46
-          else if (progress < 0.46) {
-            const crossRatio = (progress - 0.42) / 0.04;
+          // ZONE 2: Seamless Crossfade - Progress 0.44 -> 0.48
+          else if (progress < 0.48) {
+            const crossRatio = (progress - 0.44) / 0.04;
             if (c1) c1.style.opacity = `${1 - crossRatio}`;
             if (c2) c2.style.opacity = `${crossRatio}`;
 
             if (lastDrawn1Ref.current !== TOTAL_FRAMES_PER_VIDEO - 1) {
               lastDrawn1Ref.current = TOTAL_FRAMES_PER_VIDEO - 1;
-              rafQueue1Ref.current?.request(TOTAL_FRAMES_PER_VIDEO - 1);
+              drawVideo1(TOTAL_FRAMES_PER_VIDEO - 1);
             }
             if (lastDrawn2Ref.current !== 0) {
               lastDrawn2Ref.current = 0;
-              rafQueue2Ref.current?.request(0);
+              drawVideo2(0);
               seq2Ref.current?.prefetchWindow(0, 20);
             }
           }
-          // ZONE 3: 2nd Video (2nd entry video combine with 1st start.mp4) - Progress 0.46 -> 0.84
-          else if (progress <= 0.84) {
+          // ZONE 3: 2nd Video (frames) - Progress 0.48 -> 0.88
+          else if (progress <= 0.88) {
             if (c1 && c1.style.opacity !== "0") c1.style.opacity = "0";
             if (c2 && c2.style.opacity !== "1") c2.style.opacity = "1";
 
-            const p2 = (progress - 0.46) / (0.84 - 0.46);
+            const p2 = (progress - 0.48) / (0.88 - 0.48);
             const f2 = Math.min(
               TOTAL_FRAMES_PER_VIDEO - 1,
-              Math.max(0, Math.round(p2 * (TOTAL_FRAMES_PER_VIDEO - 1)))
+              Math.max(0, Math.floor(p2 * (TOTAL_FRAMES_PER_VIDEO - 1)))
             );
             if (f2 !== lastDrawn2Ref.current) {
               lastDrawn2Ref.current = f2;
-              rafQueue2Ref.current?.request(f2);
+              drawVideo2(f2);
               seq2Ref.current?.prefetchWindow(f2, 20);
             }
           }
-          // ZONE 4: Hold Last Frame (frame 239) & Smooth Line Transition - Progress 0.84 -> 1.00
+          // ZONE 4: Hold Last Frame (frame 239) & Smooth Line Transition - Progress 0.88 -> 1.00
           else {
             if (c1 && c1.style.opacity !== "0") c1.style.opacity = "0";
             if (c2 && c2.style.opacity !== "1") c2.style.opacity = "1";
 
             if (lastDrawn2Ref.current !== TOTAL_FRAMES_PER_VIDEO - 1) {
               lastDrawn2Ref.current = TOTAL_FRAMES_PER_VIDEO - 1;
-              rafQueue2Ref.current?.request(TOTAL_FRAMES_PER_VIDEO - 1);
+              drawVideo2(TOTAL_FRAMES_PER_VIDEO - 1);
             }
           }
         },

@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import Image from "next/image";
-import { gsap, ScrollTrigger, drawImageToCanvas, createRafRenderQueue } from "@/lib/animations";
+import { gsap, ScrollTrigger, drawImageToCanvas } from "@/lib/animations";
 
 import { createProgressiveSequence, ProgressiveSequenceController } from "@/lib/frameLoader";
 
@@ -36,11 +36,6 @@ export const PartsSection: React.FC = () => {
       drawImageToCanvas(ctx, img, canvas.width, canvas.height, "contain");
     }
   };
-
-  const rafQueueRef = useRef<ReturnType<typeof createRafRenderQueue<number>> | null>(null);
-  if (!rafQueueRef.current) {
-    rafQueueRef.current = createRafRenderQueue<number>((idx) => drawFrame(idx));
-  }
 
   // Progressive Priority Loading: Starts when user approaches the section (within 400px)
   useEffect(() => {
@@ -88,7 +83,6 @@ export const PartsSection: React.FC = () => {
       if (seqRef.current) {
         seqRef.current.cancel();
       }
-      rafQueueRef.current?.cancel();
     };
   }, []);
 
@@ -141,18 +135,18 @@ export const PartsSection: React.FC = () => {
         pinSpacing: true,
         anticipatePin: 0,
         refreshPriority: 2, // Pinned between Hero (3) and Colorways (1)
-        scrub: 0.6, // Calibrated 0.6s scrub for velvety-soft cinematic interpolation
+        scrub: true, // Apple-style direct 1:1 scroll scrub (no autoplay, no inertia lag)
         onUpdate: (self) => {
           const progress = Math.min(1, Math.max(0, self.progress));
           const videoProgress = Math.min(1, progress / PLAY_ZONE);
           const f = Math.min(
             TOTAL_PARTS_FRAMES - 1,
-            Math.max(0, Math.round(videoProgress * (TOTAL_PARTS_FRAMES - 1)))
+            Math.max(0, Math.floor(videoProgress * (TOTAL_PARTS_FRAMES - 1)))
           );
 
           if (f !== lastDrawnFrameRef.current) {
             lastDrawnFrameRef.current = f;
-            rafQueueRef.current?.request(f);
+            drawFrame(f);
             seqRef.current?.prefetchWindow(f, 20);
           }
         },

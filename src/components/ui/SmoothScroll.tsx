@@ -1,45 +1,38 @@
 "use client";
 
 import { useEffect } from "react";
-import Lenis from "lenis";
-import { gsap, ScrollTrigger } from "@/lib/animations";
+import { ScrollTrigger } from "@/lib/animations";
 
+/**
+ * Apple-Style Direct Scroll Controller
+ * Removes artificial inertia/momentum loops that cause frame sequences to "autoplay".
+ * Maps mouse wheel and touch directly 1:1 to scroll progress.
+ */
 export function SmoothScrollProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    // CRITICAL: Set autoRaf: false so Lenis relies 100% on GSAP's single synchronized ticker loop.
-    const lenis = new Lenis({
-      autoRaf: false,
-      duration: 1.0,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      touchMultiplier: 1.5,
-      wheelMultiplier: 1.0,
-      smoothWheel: true,
-      syncTouch: false, // Prevents trackpad swipe locks
-    });
-
-    (window as any).lenis = lenis;
-
-    lenis.on("scroll", () => {
-      ScrollTrigger.update();
-    });
-
-    const updateGSAP = (time: number) => {
-      lenis.raf(time * 1000);
+    // Provide safe lenis API mock so callers don't fail
+    (window as any).lenis = {
+      start: () => {},
+      stop: () => {},
+      resize: () => {
+        ScrollTrigger.refresh();
+      },
     };
 
-    gsap.ticker.add(updateGSAP);
-    gsap.ticker.lagSmoothing(0);
+    const handleScroll = () => {
+      ScrollTrigger.update();
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
 
     let refreshTimer: NodeJS.Timeout | null = null;
     const debouncedRefresh = () => {
       if (refreshTimer) clearTimeout(refreshTimer);
       refreshTimer = setTimeout(() => {
-        lenis.resize();
         ScrollTrigger.refresh();
       }, 120);
     };
 
-    // ResizeObserver on document.body ensures Lenis max scroll limit is NEVER stale when section images load
     const resizeObserver = new ResizeObserver(() => {
       debouncedRefresh();
     });
@@ -49,22 +42,13 @@ export function SmoothScrollProvider({ children }: { children: React.ReactNode }
     }
 
     window.addEventListener("resize", debouncedRefresh);
-    window.addEventListener("load", debouncedRefresh);
-
-    const timer1 = setTimeout(() => {
-      lenis.resize();
-      ScrollTrigger.refresh();
-    }, 400);
 
     return () => {
       delete (window as any).lenis;
       resizeObserver.disconnect();
       if (refreshTimer) clearTimeout(refreshTimer);
-      clearTimeout(timer1);
+      window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("resize", debouncedRefresh);
-      window.removeEventListener("load", debouncedRefresh);
-      gsap.ticker.remove(updateGSAP);
-      lenis.destroy();
     };
   }, []);
 

@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { gsap, ScrollTrigger, drawImageToCanvas, createRafRenderQueue } from "@/lib/animations";
+import { gsap, ScrollTrigger, drawImageToCanvas } from "@/lib/animations";
 import { createProgressiveSequence, ProgressiveSequenceController } from "@/lib/frameLoader";
 
 const TOTAL_COLOR_FRAMES = 240;
@@ -93,17 +93,6 @@ export const ColorConfigurator: React.FC = () => {
     }
   };
 
-  // Single-draw-per-screen-refresh RAF render queues
-  const rafQueue1Ref = useRef<ReturnType<typeof createRafRenderQueue<number>> | null>(null);
-  const rafQueue2Ref = useRef<ReturnType<typeof createRafRenderQueue<number>> | null>(null);
-
-  if (!rafQueue1Ref.current) {
-    rafQueue1Ref.current = createRafRenderQueue<number>((idx) => drawVideo1(idx));
-  }
-  if (!rafQueue2Ref.current) {
-    rafQueue2Ref.current = createRafRenderQueue<number>((idx) => drawVideo2(idx));
-  }
-
   // Progressive Priority Loading: Starts when user approaches Colourways section (within 500px)
   useEffect(() => {
     let isMounted = true;
@@ -156,8 +145,6 @@ export const ColorConfigurator: React.FC = () => {
       observer.disconnect();
       if (seq1Ref.current) seq1Ref.current.cancel();
       if (seq2Ref.current) seq2Ref.current.cancel();
-      rafQueue1Ref.current?.cancel();
-      rafQueue2Ref.current?.cancel();
     };
   }, []);
 
@@ -219,7 +206,7 @@ export const ColorConfigurator: React.FC = () => {
         pinSpacing: true,
         anticipatePin: 0,
         refreshPriority: 1, // Computed after upstream pinned sections
-        scrub: 0.6, // Calibrated 0.6s scrub for velvety-soft cinematic interpolation
+        scrub: true, // Apple-style direct 1:1 scroll scrub (no autoplay, no inertia lag)
         onUpdate: (self) => {
           const progress = Math.min(1, Math.max(0, self.progress));
           const c1 = canvas1Ref.current;
@@ -252,11 +239,11 @@ export const ColorConfigurator: React.FC = () => {
             const p1 = activeProgress / 0.50;
             const f1 = Math.min(
               TOTAL_COLOR_FRAMES - 1,
-              Math.max(0, Math.round(p1 * (TOTAL_COLOR_FRAMES - 1)))
+              Math.max(0, Math.floor(p1 * (TOTAL_COLOR_FRAMES - 1)))
             );
             if (f1 !== lastDrawn1Ref.current) {
               lastDrawn1Ref.current = f1;
-              rafQueue1Ref.current?.request(f1);
+              drawVideo1(f1);
               seq1Ref.current?.prefetchWindow(f1, 20);
             }
           }
@@ -268,11 +255,11 @@ export const ColorConfigurator: React.FC = () => {
             const p2 = (activeProgress - 0.50) / 0.50;
             const f2 = Math.min(
               TOTAL_COLOR_FRAMES - 1,
-              Math.max(0, Math.round(p2 * (TOTAL_COLOR_FRAMES - 1)))
+              Math.max(0, Math.floor(p2 * (TOTAL_COLOR_FRAMES - 1)))
             );
             if (f2 !== lastDrawn2Ref.current) {
               lastDrawn2Ref.current = f2;
-              rafQueue2Ref.current?.request(f2);
+              drawVideo2(f2);
               seq2Ref.current?.prefetchWindow(f2, 20);
             }
           }
