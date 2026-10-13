@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect, useState } from "react";
-import { gsap, ScrollTrigger, drawImageToCanvas } from "@/lib/animations";
+import { gsap, ScrollTrigger, drawImageToCanvas, createRafRenderQueue } from "@/lib/animations";
 
 import { createProgressiveSequence, ProgressiveSequenceController } from "@/lib/frameLoader";
 
@@ -33,6 +33,42 @@ export const CinematicReveal: React.FC<CinematicRevealProps> = ({ onInitialReady
     dpr: 1,
   });
 
+  // Direct high-performance Canvas renderers
+  const drawVideo1 = (index: number) => {
+    const canvas = canvas1Ref.current;
+    if (!canvas || !seq1Ref.current) return;
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) return;
+
+    const img = seq1Ref.current.getFrame(index);
+    if (img) {
+      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "contain");
+    }
+  };
+
+  const drawVideo2 = (index: number) => {
+    const canvas = canvas2Ref.current;
+    if (!canvas || !seq2Ref.current) return;
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) return;
+
+    const img = seq2Ref.current.getFrame(index);
+    if (img) {
+      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "contain");
+    }
+  };
+
+  // RAF queues for single-draw-per-screen-refresh performance
+  const rafQueue1Ref = useRef<ReturnType<typeof createRafRenderQueue<number>> | null>(null);
+  const rafQueue2Ref = useRef<ReturnType<typeof createRafRenderQueue<number>> | null>(null);
+
+  if (!rafQueue1Ref.current) {
+    rafQueue1Ref.current = createRafRenderQueue<number>((idx) => drawVideo1(idx));
+  }
+  if (!rafQueue2Ref.current) {
+    rafQueue2Ref.current = createRafRenderQueue<number>((idx) => drawVideo2(idx));
+  }
+
   // Progressive Priority Loading: Video 1 (frames_intro) loads immediately
   useEffect(() => {
     let isMounted = true;
@@ -40,7 +76,7 @@ export const CinematicReveal: React.FC<CinematicRevealProps> = ({ onInitialReady
     const seq1 = createProgressiveSequence({
       folder: "/frames_intro",
       totalFrames: TOTAL_FRAMES_PER_VIDEO,
-      priorityCount: 12,
+      priorityCount: 16,
       onFirstFrame: () => {
         if (!isMounted) return;
         // Instant Poster Display: Draw frame 0 immediately
@@ -67,7 +103,7 @@ export const CinematicReveal: React.FC<CinematicRevealProps> = ({ onInitialReady
       const seq2 = createProgressiveSequence({
         folder: "/frames",
         totalFrames: TOTAL_FRAMES_PER_VIDEO,
-        priorityCount: 10,
+        priorityCount: 12,
       });
       seq2Ref.current = seq2;
     }, 600);
@@ -77,12 +113,12 @@ export const CinematicReveal: React.FC<CinematicRevealProps> = ({ onInitialReady
       clearTimeout(startSeq2Timer);
       seq1.cancel();
       if (seq2Ref.current) seq2Ref.current.cancel();
+      rafQueue1Ref.current?.cancel();
+      rafQueue2Ref.current?.cancel();
     };
   }, []);
 
   // Update canvas size on resize — canvas backing = CSS pixels (no DPR multiply)
-  // This gives native 1:1 pixel mapping for 1920×1080 frames on 1080p monitors.
-  // Browser GPU handles DPR upscaling cleanly on HiDPI screens.
   useEffect(() => {
     const updateDimensions = () => {
       if (typeof window === "undefined") return;
@@ -110,32 +146,6 @@ export const CinematicReveal: React.FC<CinematicRevealProps> = ({ onInitialReady
 
   const lastDrawn1Ref = useRef<number>(-1);
   const lastDrawn2Ref = useRef<number>(-1);
-
-  // High-performance direct Canvas renderer for Video 1 (Single Crisp Frame, Zero Ghosting)
-  const drawVideo1 = (index: number) => {
-    const canvas = canvas1Ref.current;
-    if (!canvas || !seq1Ref.current) return;
-    const ctx = canvas.getContext("2d", { alpha: false });
-    if (!ctx) return;
-
-    const img = seq1Ref.current.getFrame(index);
-    if (img) {
-      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "contain");
-    }
-  };
-
-  // High-performance direct Canvas renderer for Video 2 (Single Crisp Frame, Zero Ghosting)
-  const drawVideo2 = (index: number) => {
-    const canvas = canvas2Ref.current;
-    if (!canvas || !seq2Ref.current) return;
-    const ctx = canvas.getContext("2d", { alpha: false });
-    if (!ctx) return;
-
-    const img = seq2Ref.current.getFrame(index);
-    if (img) {
-      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "contain");
-    }
-  };
 
   // Draw initial frame when loaded
   useEffect(() => {
@@ -182,7 +192,7 @@ export const CinematicReveal: React.FC<CinematicRevealProps> = ({ onInitialReady
             );
             if (f1 !== lastDrawn1Ref.current) {
               lastDrawn1Ref.current = f1;
-              drawVideo1(f1);
+              rafQueue1Ref.current?.request(f1);
               seq1Ref.current?.prefetchWindow(f1, 20);
             }
           }
@@ -194,11 +204,11 @@ export const CinematicReveal: React.FC<CinematicRevealProps> = ({ onInitialReady
 
             if (lastDrawn1Ref.current !== TOTAL_FRAMES_PER_VIDEO - 1) {
               lastDrawn1Ref.current = TOTAL_FRAMES_PER_VIDEO - 1;
-              drawVideo1(TOTAL_FRAMES_PER_VIDEO - 1);
+              rafQueue1Ref.current?.request(TOTAL_FRAMES_PER_VIDEO - 1);
             }
             if (lastDrawn2Ref.current !== 0) {
               lastDrawn2Ref.current = 0;
-              drawVideo2(0);
+              rafQueue2Ref.current?.request(0);
               seq2Ref.current?.prefetchWindow(0, 20);
             }
           }
@@ -214,7 +224,7 @@ export const CinematicReveal: React.FC<CinematicRevealProps> = ({ onInitialReady
             );
             if (f2 !== lastDrawn2Ref.current) {
               lastDrawn2Ref.current = f2;
-              drawVideo2(f2);
+              rafQueue2Ref.current?.request(f2);
               seq2Ref.current?.prefetchWindow(f2, 20);
             }
           }
@@ -225,7 +235,7 @@ export const CinematicReveal: React.FC<CinematicRevealProps> = ({ onInitialReady
 
             if (lastDrawn2Ref.current !== TOTAL_FRAMES_PER_VIDEO - 1) {
               lastDrawn2Ref.current = TOTAL_FRAMES_PER_VIDEO - 1;
-              drawVideo2(TOTAL_FRAMES_PER_VIDEO - 1);
+              rafQueue2Ref.current?.request(TOTAL_FRAMES_PER_VIDEO - 1);
             }
           }
         },
@@ -248,17 +258,25 @@ export const CinematicReveal: React.FC<CinematicRevealProps> = ({ onInitialReady
       >
         {/* Fullscreen Video Canvas Stage */}
         <div className="relative z-10 w-full h-full flex items-center justify-center bg-black overflow-hidden p-0 m-0">
+          {/* Native High-Res Poster: Zero black flash on cold load */}
+          <img
+            src="/posters/hero_poster.webp"
+            alt="Škoda Kylaq Reveal"
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none z-0"
+            loading="eager"
+          />
+
           {/* 1st Video Canvas: 1st car video starting.mp4 */}
           <canvas
             ref={canvas1Ref}
-            className="absolute inset-0 w-full h-full pointer-events-none will-change-transform"
+            className="absolute inset-0 w-full h-full pointer-events-none will-change-transform z-10"
             style={{ opacity: 1 }}
           />
 
           {/* 2nd Video Canvas: 2nd entry video combine with 1st start.mp4 */}
           <canvas
             ref={canvas2Ref}
-            className="absolute inset-0 w-full h-full pointer-events-none will-change-transform"
+            className="absolute inset-0 w-full h-full pointer-events-none will-change-transform z-10"
             style={{ opacity: 0 }}
           />
 

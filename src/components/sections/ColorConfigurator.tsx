@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { gsap, ScrollTrigger, drawImageToCanvas } from "@/lib/animations";
+import { gsap, ScrollTrigger, drawImageToCanvas, createRafRenderQueue } from "@/lib/animations";
 import { createProgressiveSequence, ProgressiveSequenceController } from "@/lib/frameLoader";
 
 const TOTAL_COLOR_FRAMES = 240;
@@ -68,7 +68,43 @@ export const ColorConfigurator: React.FC = () => {
     dpr: 1,
   });
 
-  // Progressive Priority Loading: Starts when user approaches Colourways section (within 1400px)
+  // Direct high-performance Canvas renderers
+  const drawVideo1 = (index: number) => {
+    const canvas = canvas1Ref.current;
+    if (!canvas || !seq1Ref.current) return;
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) return;
+
+    const img = seq1Ref.current.getFrame(index);
+    if (img) {
+      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "cover");
+    }
+  };
+
+  const drawVideo2 = (index: number) => {
+    const canvas = canvas2Ref.current;
+    if (!canvas || !seq2Ref.current) return;
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) return;
+
+    const img = seq2Ref.current.getFrame(index);
+    if (img) {
+      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "cover");
+    }
+  };
+
+  // Single-draw-per-screen-refresh RAF render queues
+  const rafQueue1Ref = useRef<ReturnType<typeof createRafRenderQueue<number>> | null>(null);
+  const rafQueue2Ref = useRef<ReturnType<typeof createRafRenderQueue<number>> | null>(null);
+
+  if (!rafQueue1Ref.current) {
+    rafQueue1Ref.current = createRafRenderQueue<number>((idx) => drawVideo1(idx));
+  }
+  if (!rafQueue2Ref.current) {
+    rafQueue2Ref.current = createRafRenderQueue<number>((idx) => drawVideo2(idx));
+  }
+
+  // Progressive Priority Loading: Starts when user approaches Colourways section (within 500px)
   useEffect(() => {
     let isMounted = true;
     let sequenceStarted = false;
@@ -80,7 +116,7 @@ export const ColorConfigurator: React.FC = () => {
       const seq1 = createProgressiveSequence({
         folder: "/frames_color_yellow_grey",
         totalFrames: TOTAL_COLOR_FRAMES,
-        priorityCount: 24,
+        priorityCount: 20,
         onReady: () => {
           if (isMounted) {
             setIsLoaded(true);
@@ -98,7 +134,7 @@ export const ColorConfigurator: React.FC = () => {
       seq2Ref.current = seq2;
     };
 
-    // Proximity trigger
+    // Proximity trigger: 500px margin prevents choking Hero network activity
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) {
@@ -106,7 +142,7 @@ export const ColorConfigurator: React.FC = () => {
           observer.disconnect();
         }
       },
-      { rootMargin: "1400px 0px" }
+      { rootMargin: "500px 0px" }
     );
 
     if (containerRef.current) {
@@ -120,6 +156,8 @@ export const ColorConfigurator: React.FC = () => {
       observer.disconnect();
       if (seq1Ref.current) seq1Ref.current.cancel();
       if (seq2Ref.current) seq2Ref.current.cancel();
+      rafQueue1Ref.current?.cancel();
+      rafQueue2Ref.current?.cancel();
     };
   }, []);
 
@@ -153,31 +191,6 @@ export const ColorConfigurator: React.FC = () => {
   const activeColorIndexRef = useRef<number>(0);
   const lastDrawn1Ref = useRef<number>(-1);
   const lastDrawn2Ref = useRef<number>(-1);
-
-  // Direct high-performance Canvas renderers (Single Crisp Frame, Zero Ghosting)
-  const drawVideo1 = (index: number) => {
-    const canvas = canvas1Ref.current;
-    if (!canvas || !seq1Ref.current) return;
-    const ctx = canvas.getContext("2d", { alpha: false });
-    if (!ctx) return;
-
-    const img = seq1Ref.current.getFrame(index);
-    if (img) {
-      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "cover");
-    }
-  };
-
-  const drawVideo2 = (index: number) => {
-    const canvas = canvas2Ref.current;
-    if (!canvas || !seq2Ref.current) return;
-    const ctx = canvas.getContext("2d", { alpha: false });
-    if (!ctx) return;
-
-    const img = seq2Ref.current.getFrame(index);
-    if (img) {
-      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "cover");
-    }
-  };
 
   // Draw initial frames when loaded
   useEffect(() => {
@@ -243,7 +256,7 @@ export const ColorConfigurator: React.FC = () => {
             );
             if (f1 !== lastDrawn1Ref.current) {
               lastDrawn1Ref.current = f1;
-              drawVideo1(f1);
+              rafQueue1Ref.current?.request(f1);
               seq1Ref.current?.prefetchWindow(f1, 20);
             }
           }
@@ -259,7 +272,7 @@ export const ColorConfigurator: React.FC = () => {
             );
             if (f2 !== lastDrawn2Ref.current) {
               lastDrawn2Ref.current = f2;
-              drawVideo2(f2);
+              rafQueue2Ref.current?.request(f2);
               seq2Ref.current?.prefetchWindow(f2, 20);
             }
           }
@@ -329,17 +342,25 @@ export const ColorConfigurator: React.FC = () => {
 
         {/* Fullscreen Video Canvas Stage */}
         <div className="relative z-10 w-full h-full flex items-center justify-center bg-black overflow-hidden p-0 m-0">
+          {/* Native High-Res Poster: Zero black flash on approach */}
+          <img
+            src="/posters/color_yellow_grey_poster.webp"
+            alt="Škoda Kylaq Yellow & Grey"
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none z-0"
+            loading="lazy"
+          />
+
           {/* Canvas 1: Yellow & Grey Car Pass */}
           <canvas
             ref={canvas1Ref}
-            className="absolute inset-0 w-full h-full pointer-events-none will-change-transform"
+            className="absolute inset-0 w-full h-full pointer-events-none will-change-transform z-10"
             style={{ opacity: 1 }}
           />
 
           {/* Canvas 2: Silver & Tornado Red Car Pass */}
           <canvas
             ref={canvas2Ref}
-            className="absolute inset-0 w-full h-full pointer-events-none will-change-transform"
+            className="absolute inset-0 w-full h-full pointer-events-none will-change-transform z-10"
             style={{ opacity: 0 }}
           />
 

@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import Image from "next/image";
-import { gsap, ScrollTrigger, drawImageToCanvas } from "@/lib/animations";
+import { gsap, ScrollTrigger, drawImageToCanvas, createRafRenderQueue } from "@/lib/animations";
 
 import { createProgressiveSequence, ProgressiveSequenceController } from "@/lib/frameLoader";
 
@@ -24,7 +24,25 @@ export const PartsSection: React.FC = () => {
     dpr: 1,
   });
 
-  // Progressive Priority Loading: Starts when user approaches the section (within 1200px)
+  // Direct high-performance Canvas renderer
+  const drawFrame = (index: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !seqRef.current) return;
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) return;
+
+    const img = seqRef.current.getFrame(index);
+    if (img) {
+      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "contain");
+    }
+  };
+
+  const rafQueueRef = useRef<ReturnType<typeof createRafRenderQueue<number>> | null>(null);
+  if (!rafQueueRef.current) {
+    rafQueueRef.current = createRafRenderQueue<number>((idx) => drawFrame(idx));
+  }
+
+  // Progressive Priority Loading: Starts when user approaches the section (within 400px)
   useEffect(() => {
     let isMounted = true;
     let sequenceStarted = false;
@@ -36,7 +54,7 @@ export const PartsSection: React.FC = () => {
       const seq = createProgressiveSequence({
         folder: "/frames_parts",
         totalFrames: TOTAL_PARTS_FRAMES,
-        priorityCount: 24,
+        priorityCount: 20,
         onReady: () => {
           if (isMounted) {
             setIsLoaded(true);
@@ -55,7 +73,7 @@ export const PartsSection: React.FC = () => {
           observer.disconnect();
         }
       },
-      { rootMargin: "1200px 0px" }
+      { rootMargin: "400px 0px" }
     );
 
     if (containerRef.current) {
@@ -70,6 +88,7 @@ export const PartsSection: React.FC = () => {
       if (seqRef.current) {
         seqRef.current.cancel();
       }
+      rafQueueRef.current?.cancel();
     };
   }, []);
 
@@ -94,19 +113,6 @@ export const PartsSection: React.FC = () => {
     window.addEventListener("resize", updateDimensions);
     return () => window.removeEventListener("resize", updateDimensions);
   }, []);
-
-  // Direct high-performance Canvas renderer (Single Crisp Frame, Zero Ghosting)
-  const drawFrame = (index: number) => {
-    const canvas = canvasRef.current;
-    if (!canvas || !seqRef.current) return;
-    const ctx = canvas.getContext("2d", { alpha: false });
-    if (!ctx) return;
-
-    const img = seqRef.current.getFrame(index);
-    if (img) {
-      drawImageToCanvas(ctx, img, canvas.width, canvas.height, "contain");
-    }
-  };
 
   // Draw initial frame when loaded
   useEffect(() => {
@@ -146,7 +152,7 @@ export const PartsSection: React.FC = () => {
 
           if (f !== lastDrawnFrameRef.current) {
             lastDrawnFrameRef.current = f;
-            drawFrame(f);
+            rafQueueRef.current?.request(f);
             seqRef.current?.prefetchWindow(f, 20);
           }
         },
@@ -185,9 +191,17 @@ export const PartsSection: React.FC = () => {
 
         {/* Fullscreen Video Canvas Stage */}
         <div className="relative z-10 w-full h-full flex items-center justify-center bg-black overflow-hidden p-0 m-0">
+          {/* Native High-Res Poster: Zero black flash on approach */}
+          <img
+            src="/posters/parts_poster.webp"
+            alt="Škoda Kylaq Engineering"
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none z-0"
+            loading="lazy"
+          />
+
           <canvas
             ref={canvasRef}
-            className="absolute inset-0 w-full h-full pointer-events-none will-change-transform"
+            className="absolute inset-0 w-full h-full pointer-events-none will-change-transform z-10"
           />
 
           {/* Soft Vignette Overlay */}

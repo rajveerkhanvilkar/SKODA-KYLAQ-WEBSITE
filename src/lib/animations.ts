@@ -180,3 +180,36 @@ export function drawBlendedFramesToCanvas(
 ) {
   drawImageToCanvas(ctx, imgA, canvasWidth, canvasHeight, fit);
 }
+
+/**
+ * Creates a latest-target-wins RAF render queue.
+ * Ensures that if multiple scroll updates arrive before the next screen refresh,
+ * only the latest target frame is rendered, eliminating decoder/paint thrashing.
+ */
+export function createRafRenderQueue<T>(renderFn: (data: T) => void) {
+  let pendingData: T | null = null;
+  let rafId: number | null = null;
+
+  const request = (data: T) => {
+    pendingData = data;
+    if (rafId === null) {
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        if (pendingData !== null) {
+          renderFn(pendingData);
+          pendingData = null;
+        }
+      });
+    }
+  };
+
+  const cancel = () => {
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+    pendingData = null;
+  };
+
+  return { request, cancel };
+}
