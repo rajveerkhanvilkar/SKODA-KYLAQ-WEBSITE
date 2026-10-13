@@ -77,13 +77,13 @@ export default function HomePage() {
     window.addEventListener("touchmove", preventScroll, { passive: false });
     window.addEventListener("keydown", preventKeys);
 
-    // Bounded fallback: Never hold visitor more than 800ms even on slow networks
-    const fallbackTimer = setTimeout(() => {
+    // Exactly 2 seconds branded welcome screen (displays Škoda logo & typography)
+    const splashTimer = setTimeout(() => {
       unlockScroll();
-    }, 800);
+    }, 2000);
 
     return () => {
-      clearTimeout(fallbackTimer);
+      clearTimeout(splashTimer);
       window.removeEventListener("wheel", preventScroll);
       window.removeEventListener("touchmove", preventScroll);
       window.removeEventListener("keydown", preventKeys);
@@ -92,11 +92,6 @@ export default function HomePage() {
         document.documentElement.style.overflow = "";
       }
     };
-  }, [unlockScroll]);
-
-  const handleHeroReady = useCallback(() => {
-    // Hero frame 0 is drawn and ready: unlock immediately for instant perceived experience
-    unlockScroll();
   }, [unlockScroll]);
 
   const handleToggleSound = () => {
@@ -130,7 +125,7 @@ export default function HomePage() {
         />
 
         {/* Section 1: Hero Dual Scroll Video Reveal (frames_intro & frames) */}
-        <CinematicReveal onInitialReady={handleHeroReady} />
+        <CinematicReveal />
 
         {/* Section 2: Exterior Form & Design Reveal */}
         <DesignSection />
